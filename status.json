@@ -1,11 +1,53 @@
 {
  "cloud_runs": [
   {
-   "conclusion": null,
+   "conclusion": "success",
+   "created_at": "2026-11-19T08:52:31Z",
+   "id": 44491328282,
+   "status": "completed",
+   "updated_at": "2026-11-19T08:52:40Z"
+  },
+  {
+   "conclusion": "success",
+   "created_at": "2026-11-19T07:50:17Z",
+   "id": 44482685647,
+   "status": "completed",
+   "updated_at": "2026-11-19T07:50:28Z"
+  },
+  {
+   "conclusion": "success",
+   "created_at": "2026-11-19T07:45:44Z",
+   "id": 44482102515,
+   "status": "completed",
+   "updated_at": "2026-11-19T07:49:01Z"
+  },
+  {
+   "conclusion": "success",
+   "created_at": "2026-11-19T07:41:13Z",
+   "id": 44481523741,
+   "status": "completed",
+   "updated_at": "2026-11-19T07:45:28Z"
+  },
+  {
+   "conclusion": "success",
+   "created_at": "2026-11-19T07:26:20Z",
+   "id": 44479618730,
+   "status": "completed",
+   "updated_at": "2026-11-19T07:32:22Z"
+  },
+  {
+   "conclusion": "success",
+   "created_at": "2026-11-19T07:13:22Z",
+   "id": 44477937666,
+   "status": "completed",
+   "updated_at": "2026-11-19T07:25:03Z"
+  },
+  {
+   "conclusion": "failure",
    "created_at": "2026-11-19T07:02:38Z",
    "id": 44476579211,
-   "status": "in_progress",
-   "updated_at": "2026-11-19T07:02:42Z"
+   "status": "completed",
+   "updated_at": "2026-11-19T07:12:31Z"
   },
   {
    "conclusion": "failure",
@@ -27,48 +69,6 @@
    "id": 44475442194,
    "status": "completed",
    "updated_at": "2026-11-19T06:58:28Z"
-  },
-  {
-   "conclusion": "success",
-   "created_at": "2026-11-19T06:35:45Z",
-   "id": 44473312724,
-   "status": "completed",
-   "updated_at": "2026-11-19T06:38:03Z"
-  },
-  {
-   "conclusion": "success",
-   "created_at": "2026-11-19T06:28:56Z",
-   "id": 44472469712,
-   "status": "completed",
-   "updated_at": "2026-11-19T06:29:04Z"
-  },
-  {
-   "conclusion": "success",
-   "created_at": "2026-11-19T06:17:46Z",
-   "id": 44471116178,
-   "status": "completed",
-   "updated_at": "2026-11-19T06:21:35Z"
-  },
-  {
-   "conclusion": "success",
-   "created_at": "2026-11-19T05:29:26Z",
-   "id": 44465512925,
-   "status": "completed",
-   "updated_at": "2026-11-19T05:29:34Z"
-  },
-  {
-   "conclusion": "success",
-   "created_at": "2026-11-19T05:11:55Z",
-   "id": 44463483944,
-   "status": "completed",
-   "updated_at": "2026-11-19T05:15:15Z"
-  },
-  {
-   "conclusion": "success",
-   "created_at": "2026-11-19T05:11:52Z",
-   "id": 44463479533,
-   "status": "completed",
-   "updated_at": "2026-11-19T05:23:43Z"
   }
  ],
  "failures": [
@@ -149,13 +149,50 @@
    "render": "github-actions run 44475442194",
    "size_bytes": 45327065,
    "when": "2026-11-19T07:00:58+00:00"
+  },
+  {
+   "category": "tools-home",
+   "clips": [
+    "1q5rgi0V-07.mp4",
+    "1g9Yn0SQ-17.mp4",
+    "1cRMeA4V-07.mp4",
+    "1N-ZZxt7-06.mp4",
+    "1Kbfthxb-03.mp4",
+    "1q5rgi0V-18.mp4",
+    "1cRMeA4V-16.mp4"
+   ],
+   "drive_id": "15jWkcBNdJjYuJzQGGW-9I829LZGffAlM",
+   "drive_link": "https://drive.google.com/file/d/15jWkcBNdJjYuJzQGGW-9I829LZGffAlM/view",
+   "duration_sec": 76.8,
+   "name": "compilation-tools-home-3.mp4",
+   "render": "github-actions run 44481523741",
+   "size_bytes": 55207908,
+   "when": "2026-11-19T12:49:00+05:00"
+  },
+  {
+   "category": "fruit-food",
+   "clips": [
+    "1hK6Qb5c-07.mp4",
+    "1X-2gBq8-13.mp4",
+    "1hK6Qb5c-10.mp4",
+    "1X-2gBq8-23.mp4",
+    "1X-2gBq8-05.mp4",
+    "1X-2gBq8-12.mp4"
+   ],
+   "drive_id": "1PpsFUWvHFvNZdAySiZMgcKB-Vv2wOY80",
+   "drive_link": "https://drive.google.com/file/d/1PpsFUWvHFvNZdAySiZMgcKB-Vv2wOY80/view",
+   "duration_sec": 73.3,
+   "name": "compilation-fruit-food-3.mp4",
+   "render": "github-actions run 44482102515",
+   "size_bytes": 39634119,
+   "when": "2026-11-19T12:52:00+05:00"
   }
  ],
  "sources": [
   {
    "category": "tools-home",
    "clips": 15,
-   "clips_used": 5,
+   "clips_used": 6,
    "name": "63K views  142 reactions  How to Remove Splinters Easily Get.mp4",
    "seconds": 189.3,
    "status": "analysed"
@@ -163,7 +200,7 @@
   {
    "category": "fruit-food",
    "clips": 23,
-   "clips_used": 6,
+   "clips_used": 10,
    "name": "18K views  57 reactions  Tasty Egg Recipes and Cooking Hacks.mp4",
    "seconds": 180.5,
    "status": "analysed"
@@ -171,7 +208,7 @@
   {
    "category": "tools-home",
    "clips": 21,
-   "clips_used": 3,
+   "clips_used": 4,
    "name": "17K views  84 reactions  Creative Craft Ideas and smart Life.mp4",
    "seconds": 180.2,
    "status": "analysed"
@@ -179,7 +216,7 @@
   {
    "category": "fruit-food",
    "clips": 15,
-   "clips_used": 6,
+   "clips_used": 8,
    "name": "24K views  80 reactions  Beautiful Fruit Carving Ideas for W.mp4",
    "seconds": 180.4,
    "status": "analysed"
@@ -187,7 +224,7 @@
   {
    "category": "tools-home",
    "clips": 17,
-   "clips_used": 0,
+   "clips_used": 2,
    "name": "17K views  91 reactions  Turn ordinary household problems in.mp4",
    "seconds": 163.8,
    "status": "analysed"
@@ -195,7 +232,7 @@
   {
    "category": "tools-home",
    "clips": 21,
-   "clips_used": 2,
+   "clips_used": 3,
    "name": "10K views  63 reactions  The best home improvements often be.mp4",
    "seconds": 181.4,
    "status": "analysed"
@@ -203,31 +240,75 @@
   {
    "category": "tools-home",
    "clips": 29,
-   "clips_used": 2,
+   "clips_used": 3,
    "name": "13K views  50 reactions  The best home improvements often be.mp4",
    "seconds": 241.0,
+   "status": "analysed"
+  },
+  {
+   "category": "beauty",
+   "clips": 24,
+   "clips_used": 0,
+   "name": "14K views  108 reactions  Beauty and Personal Care Hacks You .mp4",
+   "seconds": 180.2,
+   "status": "analysed"
+  },
+  {
+   "category": "tools-home",
+   "clips": 25,
+   "clips_used": 0,
+   "name": "17K views  38 reactions  The best solutions arent always com.mp4",
+   "seconds": 240.2,
+   "status": "analysed"
+  },
+  {
+   "category": "tools-home",
+   "clips": 27,
+   "clips_used": 0,
+   "name": "10K views  50 reactions  A little creativity can go a long w.mp4",
+   "seconds": 185.4,
+   "status": "analysed"
+  },
+  {
+   "category": "christmas",
+   "clips": 66,
+   "clips_used": 0,
+   "name": "14K views  108 reactions  Christmas Decor Ideas and Clever H.mp4",
+   "seconds": 530.3,
    "status": "analysed"
   }
  ],
  "summary": {
-  "analysed": 7,
+  "analysed": 11,
   "failed": 1,
   "inbox_total": 28,
-  "outputs_done": 4,
+  "outputs_done": 6,
   "pools": {
+   "beauty": {
+    "clips": 24,
+    "clips_used": 0,
+    "seconds": 180.2,
+    "seconds_free": 180.2
+   },
+   "christmas": {
+    "clips": 66,
+    "clips_used": 0,
+    "seconds": 530.3,
+    "seconds_free": 530.3
+   },
    "fruit-food": {
     "clips": 38,
-    "clips_used": 12,
+    "clips_used": 18,
     "seconds": 360.9,
-    "seconds_free": 212.4
+    "seconds_free": 139.1
    },
    "tools-home": {
-    "clips": 103,
-    "clips_used": 12,
-    "seconds": 955.7,
-    "seconds_free": 791.1
+    "clips": 155,
+    "clips_used": 18,
+    "seconds": 1381.3,
+    "seconds_free": 1145.9
    }
   }
  },
- "updated_at": "2026-11-19 12:03 PKT"
+ "updated_at": "2026-11-19 13:57 PKT"
 }

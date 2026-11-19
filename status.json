@@ -2,6 +2,27 @@
  "cloud_runs": [
   {
    "conclusion": "success",
+   "created_at": "2026-11-19T15:23:37Z",
+   "id": 44554267806,
+   "status": "completed",
+   "updated_at": "2026-11-19T15:23:45Z"
+  },
+  {
+   "conclusion": "success",
+   "created_at": "2026-11-19T15:18:04Z",
+   "id": 44553226950,
+   "status": "completed",
+   "updated_at": "2026-11-19T15:21:44Z"
+  },
+  {
+   "conclusion": "success",
+   "created_at": "2026-11-19T15:05:47Z",
+   "id": 44550926102,
+   "status": "completed",
+   "updated_at": "2026-11-19T15:09:05Z"
+  },
+  {
+   "conclusion": "success",
    "created_at": "2026-11-19T14:41:24Z",
    "id": 44546479535,
    "status": "completed",
@@ -48,30 +69,25 @@
    "id": 44535513820,
    "status": "completed",
    "updated_at": "2026-11-19T13:38:56Z"
-  },
-  {
-   "conclusion": "success",
-   "created_at": "2026-11-19T13:37:02Z",
-   "id": 44535235005,
-   "status": "completed",
-   "updated_at": "2026-11-19T13:37:14Z"
-  },
-  {
-   "conclusion": "success",
-   "created_at": "2026-11-19T13:32:37Z",
-   "id": 44534489018,
-   "status": "completed",
-   "updated_at": "2026-11-19T13:37:32Z"
-  },
-  {
-   "conclusion": "success",
-   "created_at": "2026-11-19T13:09:00Z",
-   "id": 44530593727,
-   "status": "completed",
-   "updated_at": "2026-11-19T13:09:11Z"
   }
  ],
  "failures": [
+  {
+   "name": "48K views  94 reactions  Smart Clothing Organization Tricks .mp4",
+   "reason": "Drive reports size 0 and download returns 0 bytes \u2014 file is empty/incomplete in Drive (upload never completed); nothing to analyse. Needs re-upload by the user (new Drive ID)."
+  },
+  {
+   "name": "20K views  66 reactions  Delicious Homemade Food Ideas and P.mp4",
+   "reason": "Drive reports size 0 and download returns 0 bytes \u2014 file is empty/incomplete in Drive (upload never completed); nothing to analyse. Needs re-upload by the user (new Drive ID)."
+  },
+  {
+   "name": "15K views  83 reactions  Unique Fruit Decoration Ideas for T.mp4",
+   "reason": "Drive reports size 0 and download returns 0 bytes \u2014 file is empty/incomplete in Drive (upload never completed); nothing to analyse. Needs re-upload by the user (new Drive ID)."
+  },
+  {
+   "name": "144K views  194 reactions  Make every project easier with cl.mp4",
+   "reason": "Drive reports size 0 and download returns 0 bytes \u2014 file is empty/incomplete in Drive (upload never completed); nothing to analyse. Needs re-upload by the user (new Drive ID)."
+  },
   {
    "name": "compilation-fruit-food-2.mp4",
    "reason": "Verification failed: narration/captions said watermelon/avocado for 3 clips from source 1hK6Qb5c, but frames show orange/persimmon, fruit-cheese plate, watermelon+lime instead. Source labels were shifted ~1 scene in the 38-134s stretch; descs corrected from frames. Render run 44471116178 (success) NOT delivered, clips left unused for rebuild. Superseded by successful rebuild below (same name)."
@@ -254,6 +270,45 @@
    "render": "github-actions run 44546479535 (clean rebuild; two earlier attempts failed verification, not delivered)",
    "status": "delivered",
    "when": "2026-11-19T19:49:35+05:00"
+  },
+  {
+   "category": "woodworking",
+   "clips": [
+    "1AyCnpRb-01.mp4",
+    "1DdVJstX-17.mp4",
+    "1AyCnpRb-07.mp4",
+    "1AyCnpRb-17.mp4",
+    "1AyCnpRb-18.mp4",
+    "1DdVJstX-19.mp4"
+   ],
+   "drive_id": "1QcaPazvcDF4P9XuGtjr3JwS54ytDJ2Op",
+   "drive_link": "https://drive.google.com/file/d/1QcaPazvcDF4P9XuGtjr3JwS54ytDJ2Op/view",
+   "duration_sec": 70.8,
+   "name": "compilation-woodworking-1.mp4",
+   "render": "github-actions run 44550926102",
+   "size_bytes": 59000917,
+   "status": "delivered",
+   "when": "2026-11-19T15:12:29+00:00"
+  },
+  {
+   "category": "fruit-food",
+   "clips": [
+    "16YGulUB-19.mp4",
+    "16YGulUB-16.mp4",
+    "16YGulUB-11.mp4",
+    "16YGulUB-04.mp4",
+    "1hK6Qb5c-08.mp4",
+    "1X-2gBq8-06.mp4",
+    "16YGulUB-22.mp4"
+   ],
+   "drive_id": "1u5DCn98SQlIQ_5uwSPLuh-2TJhoMlOdV",
+   "drive_link": "https://drive.google.com/file/d/1u5DCn98SQlIQ_5uwSPLuh-2TJhoMlOdV/view",
+   "duration_sec": 68.1,
+   "name": "compilation-fruit-food-5.mp4",
+   "render": "github-actions run 44553226950",
+   "size_bytes": 56188051,
+   "status": "delivered",
+   "when": "2026-11-19T15:23:49+00:00"
   }
  ],
  "sources": [
@@ -268,7 +323,7 @@
   {
    "category": "fruit-food",
    "clips": 23,
-   "clips_used": 16,
+   "clips_used": 17,
    "name": "18K views  57 reactions  Tasty Egg Recipes and Cooking Hacks.mp4",
    "seconds": 180.5,
    "status": "analysed"
@@ -284,7 +339,7 @@
   {
    "category": "fruit-food",
    "clips": 15,
-   "clips_used": 13,
+   "clips_used": 14,
    "name": "24K views  80 reactions  Beautiful Fruit Carving Ideas for W.mp4",
    "seconds": 180.4,
    "status": "analysed"
@@ -380,7 +435,7 @@
   {
    "category": "woodworking",
    "clips": 22,
-   "clips_used": 0,
+   "clips_used": 2,
    "name": "59K views  23 reactions  Creative Woodworking Projects Geniu.mp4",
    "seconds": 181.6,
    "status": "analysed"
@@ -388,7 +443,7 @@
   {
    "category": "woodworking",
    "clips": 20,
-   "clips_used": 0,
+   "clips_used": 4,
    "name": "14K views  35 reactions  Woodworking Experiments That Combin.mp4",
    "seconds": 182.6,
    "status": "analysed"
@@ -396,7 +451,7 @@
   {
    "category": "fruit-food",
    "clips": 21,
-   "clips_used": 0,
+   "clips_used": 5,
    "name": "87K views  35 reactions  These Food Hacks Are Too Good Not t.mp4",
    "seconds": 161.8,
    "status": "analysed"
@@ -424,13 +479,45 @@
    "name": "8K views  29 reactions  Advanced Electrical Wiring Tricks Ca.mp4",
    "seconds": 180.8,
    "status": "analysed"
+  },
+  {
+   "category": null,
+   "clips": 0,
+   "clips_used": 0,
+   "name": "48K views  94 reactions  Smart Clothing Organization Tricks .mp4",
+   "seconds": 0,
+   "status": "failed"
+  },
+  {
+   "category": null,
+   "clips": 0,
+   "clips_used": 0,
+   "name": "20K views  66 reactions  Delicious Homemade Food Ideas and P.mp4",
+   "seconds": 0,
+   "status": "failed"
+  },
+  {
+   "category": null,
+   "clips": 0,
+   "clips_used": 0,
+   "name": "15K views  83 reactions  Unique Fruit Decoration Ideas for T.mp4",
+   "seconds": 0,
+   "status": "failed"
+  },
+  {
+   "category": null,
+   "clips": 0,
+   "clips_used": 0,
+   "name": "144K views  194 reactions  Make every project easier with cl.mp4",
+   "seconds": 0,
+   "status": "failed"
   }
  ],
  "summary": {
   "analysed": 21,
-  "failed": 4,
+  "failed": 8,
   "inbox_total": 28,
-  "outputs_done": 9,
+  "outputs_done": 11,
   "pools": {
    "beauty": {
     "clips": 24,
@@ -446,9 +533,9 @@
    },
    "fruit-food": {
     "clips": 59,
-    "clips_used": 29,
+    "clips_used": 36,
     "seconds": 522.7,
-    "seconds_free": 223.0
+    "seconds_free": 154.9
    },
    "tools-home": {
     "clips": 285,
@@ -458,11 +545,11 @@
    },
    "woodworking": {
     "clips": 42,
-    "clips_used": 0,
+    "clips_used": 6,
     "seconds": 364.2,
-    "seconds_free": 364.2
+    "seconds_free": 293.4
    }
   }
  },
- "updated_at": "2026-11-19 19:49 PKT"
+ "updated_at": "2026-11-19 20:23 PKT"
 }

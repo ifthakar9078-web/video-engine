@@ -148,11 +148,16 @@ def drive_req(method, url, data=None, headers=None, timeout=300):
             req = urllib.request.Request(url, data=data, method=method, headers=h)
             return urllib.request.urlopen(req, timeout=timeout)
         except urllib.error.HTTPError as e:
-            last = e
             if e.code in (429, 500, 502, 503) and attempt < 2:
+                last = e
                 time.sleep(5 * (attempt + 1))
                 continue
-            raise
+            try:
+                body = e.read().decode("utf-8", "replace")[:400]
+            except Exception:
+                body = ""
+            raise RuntimeError(f"Drive HTTP {e.code} on {method} "
+                               f"{url.split('?')[0]}: {body}")
     raise last
 
 
@@ -519,6 +524,7 @@ def cutter(board_sources):
                     log(f"cutter: clip {cname} too short after cut ({cdur:.1f}s) — skipped")
                     cpath.unlink(missing_ok=True)
                     continue
+                log(f"cutter: uploading clip {cname} ({cdur:.1f}s) to pool {category}")
                 up = drive_upload(cname, cat["id"], cpath, "video/mp4")
                 new_clips.append({"drive_id": up["id"], "name": cname,
                                   "dur": round(cdur, 2), "used": False,

@@ -1,38 +1,233 @@
 {
  "cloud_runs": [
   {
-   "conclusion": "success",
-   "created_at": "2026-11-19T03:55:17Z",
-   "id": 44454741987,
+   "conclusion": null,
+   "created_at": "2026-11-19T07:02:38Z",
+   "id": 44476579211,
+   "status": "in_progress",
+   "updated_at": "2026-11-19T07:02:42Z"
+  },
+  {
+   "conclusion": "failure",
+   "created_at": "2026-11-19T06:58:13Z",
+   "id": 44476035942,
    "status": "completed",
-   "updated_at": "2026-11-19T03:56:09Z"
+   "updated_at": "2026-11-19T07:00:43Z"
+  },
+  {
+   "conclusion": "success",
+   "created_at": "2026-11-19T06:56:43Z",
+   "id": 44475864231,
+   "status": "completed",
+   "updated_at": "2026-11-19T06:56:51Z"
+  },
+  {
+   "conclusion": "success",
+   "created_at": "2026-11-19T06:53:13Z",
+   "id": 44475442194,
+   "status": "completed",
+   "updated_at": "2026-11-19T06:58:28Z"
+  },
+  {
+   "conclusion": "success",
+   "created_at": "2026-11-19T06:35:45Z",
+   "id": 44473312724,
+   "status": "completed",
+   "updated_at": "2026-11-19T06:38:03Z"
+  },
+  {
+   "conclusion": "success",
+   "created_at": "2026-11-19T06:28:56Z",
+   "id": 44472469712,
+   "status": "completed",
+   "updated_at": "2026-11-19T06:29:04Z"
+  },
+  {
+   "conclusion": "success",
+   "created_at": "2026-11-19T06:17:46Z",
+   "id": 44471116178,
+   "status": "completed",
+   "updated_at": "2026-11-19T06:21:35Z"
+  },
+  {
+   "conclusion": "success",
+   "created_at": "2026-11-19T05:29:26Z",
+   "id": 44465512925,
+   "status": "completed",
+   "updated_at": "2026-11-19T05:29:34Z"
+  },
+  {
+   "conclusion": "success",
+   "created_at": "2026-11-19T05:11:55Z",
+   "id": 44463483944,
+   "status": "completed",
+   "updated_at": "2026-11-19T05:15:15Z"
+  },
+  {
+   "conclusion": "success",
+   "created_at": "2026-11-19T05:11:52Z",
+   "id": 44463479533,
+   "status": "completed",
+   "updated_at": "2026-11-19T05:23:43Z"
   }
  ],
- "failures": [],
- "outputs": [],
+ "failures": [
+  {
+   "name": "compilation-fruit-food-2.mp4",
+   "reason": "Verification failed: narration/captions said watermelon/avocado for 3 clips from source 1hK6Qb5c, but frames show orange/persimmon, fruit-cheese plate, watermelon+lime instead. Source labels were shifted ~1 scene in the 38-134s stretch; descs corrected from frames. Render run 44471116178 (success) NOT delivered, clips left unused for rebuild. Superseded by successful rebuild below (same name)."
+  }
+ ],
+ "outputs": [
+  {
+   "category": "tools-home",
+   "clips": [
+    "1Kbfthxb-01.mp4",
+    "1q5rgi0V-20.mp4",
+    "1Kbfthxb-12.mp4",
+    "1q5rgi0V-07.mp4",
+    "1Kbfthxb-07.mp4"
+   ],
+   "drive_id": "1tTkuXalJICAFsJoVykwzBBC_9ns3WKME",
+   "drive_link": "https://drive.google.com/file/d/1tTkuXalJICAFsJoVykwzBBC_9ns3WKME/view",
+   "duration_sec": 82.7,
+   "name": "compilation-tools-home-1.mp4",
+   "render": "github-actions run 44463483944",
+   "size_bytes": 51361666,
+   "when": "2026-11-19T10:17:43+05:00"
+  },
+  {
+   "category": "fruit-food",
+   "clips": [
+    "1hK6Qb5c-03.mp4",
+    "1X-2gBq8-01.mp4",
+    "1hK6Qb5c-02.mp4",
+    "1X-2gBq8-22.mp4",
+    "1hK6Qb5c-13.mp4",
+    "1X-2gBq8-03.mp4"
+   ],
+   "drive_id": "1MoIDcksOw6ZS6NF9waUCwyvp87TSnaW8",
+   "drive_link": "https://drive.google.com/file/d/1MoIDcksOw6ZS6NF9waUCwyvp87TSnaW8/view",
+   "duration_sec": 80.1,
+   "name": "compilation-fruit-food-1.mp4",
+   "render": "github-actions run 44463479533",
+   "size_bytes": 50409825,
+   "when": "2026-11-19T10:29:00+05:00"
+  },
+  {
+   "category": "fruit-food",
+   "clips": [
+    "1hK6Qb5c-15.mp4",
+    "1X-2gBq8-14.mp4",
+    "1hK6Qb5c-01.mp4",
+    "1X-2gBq8-17.mp4",
+    "1hK6Qb5c-14.mp4",
+    "1X-2gBq8-02.mp4"
+   ],
+   "drive_id": "1UGUUwvKyKsz1xkGIkqugTVtU3WKGdNB8",
+   "drive_link": "https://drive.google.com/file/d/1UGUUwvKyKsz1xkGIkqugTVtU3WKGdNB8/view",
+   "duration_sec": 68.4,
+   "name": "compilation-fruit-food-2.mp4",
+   "render": "github-actions run 44473312724",
+   "size_bytes": 43650524,
+   "when": "2026-11-19T06:43:28+00:00"
+  },
+  {
+   "category": "tools-home",
+   "clips": [
+    "1g9Yn0SQ-07.mp4",
+    "1N-ZZxt7-02.mp4",
+    "1Kbfthxb-15.mp4",
+    "1g9Yn0SQ-02.mp4",
+    "1q5rgi0V-21.mp4",
+    "1N-ZZxt7-11.mp4",
+    "1Kbfthxb-13.mp4"
+   ],
+   "drive_id": "1TxvY5UrKV5RTAkdeYMaSwsoqS6XFQjVa",
+   "drive_link": "https://drive.google.com/file/d/1TxvY5UrKV5RTAkdeYMaSwsoqS6XFQjVa/view",
+   "duration_sec": 81.9,
+   "name": "compilation-tools-home-2.mp4",
+   "render": "github-actions run 44475442194",
+   "size_bytes": 45327065,
+   "when": "2026-11-19T07:00:58+00:00"
+  }
+ ],
  "sources": [
   {
    "category": "tools-home",
    "clips": 15,
-   "clips_used": 0,
+   "clips_used": 5,
    "name": "63K views  142 reactions  How to Remove Splinters Easily Get.mp4",
    "seconds": 189.3,
+   "status": "analysed"
+  },
+  {
+   "category": "fruit-food",
+   "clips": 23,
+   "clips_used": 6,
+   "name": "18K views  57 reactions  Tasty Egg Recipes and Cooking Hacks.mp4",
+   "seconds": 180.5,
+   "status": "analysed"
+  },
+  {
+   "category": "tools-home",
+   "clips": 21,
+   "clips_used": 3,
+   "name": "17K views  84 reactions  Creative Craft Ideas and smart Life.mp4",
+   "seconds": 180.2,
+   "status": "analysed"
+  },
+  {
+   "category": "fruit-food",
+   "clips": 15,
+   "clips_used": 6,
+   "name": "24K views  80 reactions  Beautiful Fruit Carving Ideas for W.mp4",
+   "seconds": 180.4,
+   "status": "analysed"
+  },
+  {
+   "category": "tools-home",
+   "clips": 17,
+   "clips_used": 0,
+   "name": "17K views  91 reactions  Turn ordinary household problems in.mp4",
+   "seconds": 163.8,
+   "status": "analysed"
+  },
+  {
+   "category": "tools-home",
+   "clips": 21,
+   "clips_used": 2,
+   "name": "10K views  63 reactions  The best home improvements often be.mp4",
+   "seconds": 181.4,
+   "status": "analysed"
+  },
+  {
+   "category": "tools-home",
+   "clips": 29,
+   "clips_used": 2,
+   "name": "13K views  50 reactions  The best home improvements often be.mp4",
+   "seconds": 241.0,
    "status": "analysed"
   }
  ],
  "summary": {
-  "analysed": 1,
-  "failed": 0,
+  "analysed": 7,
+  "failed": 1,
   "inbox_total": 28,
-  "outputs_done": 0,
+  "outputs_done": 4,
   "pools": {
+   "fruit-food": {
+    "clips": 38,
+    "clips_used": 12,
+    "seconds": 360.9,
+    "seconds_free": 212.4
+   },
    "tools-home": {
-    "clips": 15,
-    "clips_used": 0,
-    "seconds": 189.3,
-    "seconds_free": 189.3
+    "clips": 103,
+    "clips_used": 12,
+    "seconds": 955.7,
+    "seconds_free": 791.1
    }
   }
  },
- "updated_at": "2026-11-19 09:01 PKT"
+ "updated_at": "2026-11-19 12:03 PKT"
 }

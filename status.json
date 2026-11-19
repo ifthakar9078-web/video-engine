@@ -75,6 +75,10 @@
   {
    "name": "compilation-fruit-food-2.mp4",
    "reason": "Verification failed: narration/captions said watermelon/avocado for 3 clips from source 1hK6Qb5c, but frames show orange/persimmon, fruit-cheese plate, watermelon+lime instead. Source labels were shifted ~1 scene in the 38-134s stretch; descs corrected from frames. Render run 44471116178 (success) NOT delivered, clips left unused for rebuild. Superseded by successful rebuild below (same name)."
+  },
+  {
+   "name": "compilation-tools-home-4.mp4",
+   "reason": "Cloud render timed out: GitHub Actions run 44521344973 still in_progress with no artifact after 15 minutes from dispatch (12:09:58-12:25:28 UTC); bundle published OK, dispatch accepted (204). Clips left unused for rebuild."
   }
  ],
  "outputs": [
@@ -351,7 +355,7 @@
  ],
  "summary": {
   "analysed": 17,
-  "failed": 1,
+  "failed": 2,
   "inbox_total": 28,
   "outputs_done": 7,
   "pools": {
@@ -387,5 +391,5 @@
    }
   }
  },
- "updated_at": "2026-11-19 17:15 PKT"
+ "updated_at": "2026-11-19 17:25 PKT"
 }

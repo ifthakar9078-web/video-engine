@@ -46,7 +46,7 @@ jobs:
           JOB_ID: ${{ inputs.job_id }}
         run: |
           if [ -n "$JOB_ID" ]; then echo "skip=false" >> "$GITHUB_OUTPUT"; exit 0; fi
-          N=$(curl -s -H "X-Queue-Key: $QUEUE_KEY" "$QUEUE_URL/jobs" | python3 -c "import json,sys; d=json.load(sys.stdin); print(sum(1 for j in d.get('jobs',[]) if j.get('status')=='queued'))" || echo 1)
+          N=$(curl -s -A "Mozilla/5.0 video-compiler-engine" -H "X-Queue-Key: $QUEUE_KEY" "$QUEUE_URL/jobs" | python3 -c "import json,sys; d=json.load(sys.stdin); print(sum(1 for j in d.get('jobs',[]) if j.get('status')=='queued'))" || echo 1)
           echo "queued jobs: $N"
           if [ "$N" = "0" ]; then echo "skip=true" >> "$GITHUB_OUTPUT"; else echo "skip=false" >> "$GITHUB_OUTPUT"; fi
 
@@ -154,7 +154,8 @@ jobs:
           def qapi(method, path, payload=None):
               req = urllib.request.Request(QUEUE_URL + path, method=method,
                   data=json.dumps(payload).encode() if payload is not None else None,
-                  headers={"Content-Type": "application/json", "X-Queue-Key": QUEUE_KEY})
+                  headers={"Content-Type": "application/json", "X-Queue-Key": QUEUE_KEY,
+                           "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) video-compiler-engine"})
               with urllib.request.urlopen(req, timeout=60) as r:
                   return json.loads(r.read())
           def set_stage(jid, stage, note="", error=None, output=None):

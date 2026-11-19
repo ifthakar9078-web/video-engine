@@ -178,8 +178,20 @@ jobs:
                   return json.loads(r.read())
           def gemini_upload(path):
               data = Path(path).read_bytes()
-              req = urllib.request.Request(f"{API}/upload/files?key={GEMINI_KEY}", data=data,
-                  headers={"X-Goog-Upload-Protocol": "raw", "Content-Type": "video/mp4"})
+              meta = json.dumps({"file": {"display_name": Path(path).name}}).encode()
+              req = urllib.request.Request("https://generativelanguage.googleapis.com/upload/v1beta/files",
+                  data=meta, method="POST",
+                  headers={"x-goog-api-key": GEMINI_KEY, "X-Goog-Upload-Protocol": "resumable",
+                           "X-Goog-Upload-Command": "start",
+                           "X-Goog-Upload-Header-Content-Length": str(len(data)),
+                           "X-Goog-Upload-Header-Content-Type": "video/mp4",
+                           "Content-Type": "application/json"})
+              with urllib.request.urlopen(req, timeout=120) as r:
+                  up_url = r.headers.get("x-goog-upload-url") or r.headers.get("X-Goog-Upload-URL")
+              if not up_url: raise RuntimeError("Gemini upload: no upload URL returned")
+              req = urllib.request.Request(up_url, data=data, method="POST",
+                  headers={"Content-Length": str(len(data)), "X-Goog-Upload-Offset": "0",
+                           "X-Goog-Upload-Command": "upload, finalize"})
               with urllib.request.urlopen(req, timeout=900) as r:
                   f = json.loads(r.read())["file"]
               for _ in range(40):

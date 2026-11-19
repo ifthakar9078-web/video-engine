@@ -18,21 +18,30 @@ Output:
 
 Behaviour (mirrors app/produce_final6.py):
   - every clip conformed to meta width/height/fps (scale + pad, setsar=1)
-  - voice block laid over its clip's slot: longer -> atempo up to 1.20, then
-    trimmed to the slot; shorter -> padded with silence to the slot
+  - THE VOICE DEFINES THE TIMELINE (no dead silence, ever): each clip's slot
+    is fitted to its voice block — a shorter voice trims the clip (at most
+    0.30s of padding may remain), a longer voice is sped up to atempo 1.20
+    and beyond that the VIDEO is slowed/freeze-extended so narration is
+    never cut mid-word. A missing voice block is a hard error: a silent
+    slot must never ship. The clip's own audio is always discarded.
   - whoosh at every cut, HARD cuts (concat, no transitions)
-  - optional burned captions (small, white bold, black outline, bottom-centre)
-    and optional hook_text overlay for the first 3 seconds
-  - self-verification at the end: per-stream durations within 1s and a full
-    decode pass; exits non-zero with a clear message if verification fails
+  - optional burned captions (small, white bold, black outline, bottom-centre;
+    timings are remapped onto the fitted timeline) and optional hook_text
+    overlay for the first 3 seconds
+  - self-verification at the end: per-stream durations within 1s, a full
+    decode pass, and a silence scan (any dead air >= 1.0s fails the render);
+    exits non-zero with a clear message if verification fails
 """
 import glob
 import json
 import os
+import re
 import subprocess
 import sys
 
 MAX_TEMPO = 1.20          # hard cap for voice fit-tempo (template rule)
+TAIL_PAD = 0.30           # max trailing pause allowed at the end of a slot
+MAX_STRETCH = 1.50        # max video slow-down before freeze-extending
 WHOOSH_VOL = 0.15
 FONT_CANDIDATES = [
     "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
@@ -72,23 +81,44 @@ def make_whoosh(path):
          "-codec:a", "pcm_s16le", path], "whoosh synthesis")
 
 
-def build_voice_track(bundle, slots, workdir):
-    """One fitted block per slot, concatenated -> voice.wav of exactly total length."""
+def fit_slots(bundle, clip_durs):
+    """Fit every slot to its voice block. Returns (slots, tempos, stretches):
+    slot = final on-screen seconds for the clip, tempo = voice speed-up
+    applied (1.0 = none), stretch = video slow-down factor (1.0 = none).
+    A missing/empty voice block aborts the render — silent slots never ship."""
+    slots, tempos, stretches = [], [], []
+    for i, cd in enumerate(clip_durs):
+        vf = os.path.join(bundle, "voice", f"{i+1:03d}.mp3")
+        if not (os.path.exists(vf) and os.path.getsize(vf) > 500):
+            sys.stderr.write(
+                f"ERROR: voice block missing for clip {i+1} — refusing to "
+                "render a silent slot\n")
+            raise SystemExit(1)
+        vd = dur(vf)
+        tempo = min(MAX_TEMPO, vd / cd) if vd > cd else 1.0
+        vd_fit = vd / tempo
+        if vd_fit > cd:
+            slot, stretch = vd_fit, vd_fit / cd
+        else:
+            slot, stretch = min(cd, vd_fit + TAIL_PAD), 1.0
+        slots.append(round(slot, 3))
+        tempos.append(round(tempo, 3))
+        stretches.append(round(stretch, 4))
+    return slots, tempos, stretches
+
+
+def build_voice_track(bundle, slots, tempos, workdir):
+    """One fitted block per slot, concatenated -> voice.wav of exactly total
+    length. Slots were fitted to the voice, so padding is <= TAIL_PAD."""
     inputs, fc = [], []
     for i, slot in enumerate(slots):
         vf = os.path.join(bundle, "voice", f"{i+1:03d}.mp3")
-        if os.path.exists(vf) and os.path.getsize(vf) > 500:
-            d = dur(vf)
-            chain = f"[{i}:a]aresample=44100"
-            if d > slot:
-                tempo = min(MAX_TEMPO, d / slot)
-                chain += f",atempo={tempo:.3f}"
-            chain += f",atrim=0:{slot:.3f},apad=whole_dur={slot:.3f},atrim=0:{slot:.3f}[s{i}]"
-            inputs += ["-i", vf]
-        else:
-            chain = (f"[{i}:a]atrim=0:{slot:.3f},apad=whole_dur={slot:.3f},"
-                     f"atrim=0:{slot:.3f}[s{i}]")
-            inputs += ["-f", "lavfi", "-i", "anullsrc=r=44100:cl=stereo"]
+        chain = f"[{i}:a]aresample=44100"
+        if tempos[i] > 1.0:
+            chain += f",atempo={tempos[i]:.3f}"
+        chain += (f",atrim=0:{slot:.3f},apad=whole_dur={slot:.3f},"
+                  f"atrim=0:{slot:.3f}[s{i}]")
+        inputs += ["-i", vf]
         fc.append(chain)
     fc.append("".join(f"[s{i}]" for i in range(len(slots))) +
               f"concat=n={len(slots)}:v=0:a=1[voice]")
@@ -175,6 +205,16 @@ def verify(final, total):
     if r.returncode != 0 or r.stderr.strip():
         sys.stderr.write(f"VERIFY FAILED: decode errors:\n{r.stderr[-1500:]}\n")
         raise SystemExit(2)
+    # Dead-air scan: no silence of 1.0s or longer may exist anywhere.
+    r = subprocess.run(["ffmpeg", "-v", "info", "-i", final,
+                        "-af", "silencedetect=noise=-42dB:d=1.0",
+                        "-f", "null", "-"], capture_output=True, text=True)
+    for ln in r.stderr.splitlines():
+        m = re.search(r"silence_duration:\s*([\d.]+)", ln)
+        if m and float(m.group(1)) >= 1.0:
+            sys.stderr.write(
+                f"VERIFY FAILED: dead silence of {m.group(1)}s in output\n")
+            raise SystemExit(2)
     return d
 
 
@@ -191,17 +231,23 @@ def main():
     if not clips:
         sys.stderr.write("ERROR: no clips in bundle/clips/\n")
         raise SystemExit(1)
-    slots = [dur(c) for c in clips]
+    clip_durs = [dur(c) for c in clips]
+    orig_starts, acc = [], 0.0
+    for s in clip_durs:
+        orig_starts.append(acc); acc += s
+    # Fit the timeline to the voice: slots shrink/stretch so narration
+    # covers every second (see fit_slots). Captions are remapped below.
+    slots, tempos, stretches = fit_slots(bundle, clip_durs)
     starts, acc = [], 0.0
     for s in slots:
         starts.append(acc); acc += s
     total = acc
-    print(f"bundle: {len(clips)} clips, total {total:.1f}s, "
-          f"target {W}x{H}@{fps}", flush=True)
+    print(f"bundle: {len(clips)} clips, fitted total {total:.1f}s "
+          f"(raw {sum(clip_durs):.1f}s), target {W}x{H}@{fps}", flush=True)
 
     workdir = os.path.join(bundle, "_work")
     os.makedirs(workdir, exist_ok=True)
-    voice_wav = build_voice_track(bundle, slots, workdir)
+    voice_wav = build_voice_track(bundle, slots, tempos, workdir)
     whoosh_wav = None
     if len(clips) > 1:
         whoosh_wav = build_whoosh_track(bundle, starts[1:], total, workdir)
@@ -215,13 +261,39 @@ def main():
     if whoosh_wav:
         inputs += ["-i", whoosh_wav]
     for i in range(n):
-        g.append(f"[{i}:v]scale={W}:{H}:force_original_aspect_ratio=decrease,"
+        slot, stretch = slots[i], stretches[i]
+        pre = ""
+        if stretch > 1.0:
+            if stretch <= MAX_STRETCH:
+                pre = f"setpts={stretch:.4f}*(PTS-STARTPTS),"
+            else:
+                extra = slot - clip_durs[i] * MAX_STRETCH
+                pre = (f"setpts={MAX_STRETCH:.2f}*(PTS-STARTPTS),"
+                       f"tpad=stop_mode=clone:stop_duration={extra:.3f},")
+        pre += f"trim=0:{slot:.3f},setpts=PTS-STARTPTS,"
+        g.append(f"[{i}:v]{pre}scale={W}:{H}:force_original_aspect_ratio=decrease,"
                  f"pad={W}:{H}:(ow-iw)/2:(oh-ih)/2,fps={fps},setsar=1,"
                  f"format=yuv420p[v{i}]")
     g.append("".join(f"[v{i}]" for i in range(n)) + f"concat=n={n}:v=1:a=0[vcat]")
     cur = "vcat"
     font = find_font()
     captions = meta.get("captions")
+    if captions:
+        # Remap caption timings from the raw clip timeline onto the fitted
+        # (voice-defined) timeline, proportionally inside each clip's block.
+        remapped = []
+        for cap in captions:
+            cs, ce = float(cap["start"]), float(cap["end"])
+            k = len(clips) - 1
+            for j in range(len(clips)):
+                if orig_starts[j] <= cs < orig_starts[j] + clip_durs[j]:
+                    k = j
+                    break
+            scale = slots[k] / clip_durs[k] if clip_durs[k] else 1.0
+            remapped.append({**cap,
+                             "start": round(starts[k] + (cs - orig_starts[k]) * scale, 3),
+                             "end": round(starts[k] + (ce - orig_starts[k]) * scale, 3)})
+        captions = remapped
     if captions:
         ass = os.path.join(workdir, "captions.ass")
         write_ass(captions, W, H, ass)

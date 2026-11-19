@@ -695,8 +695,22 @@ def merger():
         if total < 61:
             log(f"merger: {category}: could not reach 61s (got {total:.0f}s) — skipped")
             continue
-        # number the output: compilation-<category>-<n>.mp4
-        existing = [f for f in drive_list(FINISHED_ID)
+        # finished videos are filed category-wise: Video Finished/<category>/
+        fin_folder = None
+        for f in drive_list(FINISHED_ID):
+            if f.get("name") == category and f.get("mimeType") == FOLDER_MIME:
+                fin_folder = f["id"]
+                break
+        if not fin_folder:
+            d = drive_req("POST", "/files", data=json.dumps(
+                {"name": category, "mimeType": FOLDER_MIME,
+                 "parents": [FINISHED_ID]}).encode(),
+                headers={"Content-Type": "application/json"})
+            fin_folder = json.loads(d)["id"]
+            log(f"merger: created Video Finished/{category} folder")
+        # number the output: compilation-<category>-<n>.mp4 (count the root
+        # too — older finished videos live there, numbers must never repeat)
+        existing = [f for f in drive_list(FINISHED_ID) + drive_list(fin_folder)
                     if f.get("name", "").startswith(f"compilation-{category}-")]
         n = len(existing) + 1
         names = {f.get("name") for f in existing}
@@ -781,10 +795,10 @@ def merger():
             shutil.copy(bundle / "final.mp4", final)
             d = verify_final(final)
             log(f"merger: verified {title}: video {d['video']:.2f}s / audio {d['audio']:.2f}s")
-            up = drive_upload(f"{title}.mp4", FINISHED_ID, final, "video/mp4")
-            log(f"merger: uploaded to Video Finished: {up.get('id')}")
+            up = drive_upload(f"{title}.mp4", fin_folder, final, "video/mp4")
+            log(f"merger: uploaded to Video Finished/{category}: {up.get('id')}")
             if srt_path:
-                drive_upload(f"{title}.srt", FINISHED_ID, srt_path, "text/plain")
+                drive_upload(f"{title}.srt", fin_folder, srt_path, "text/plain")
             tag = f"drive-{title}"
             files = [str(final)] + ([str(srt_path)] if srt_path else [])
             r = run(["gh", "release", "create", tag, *files, "--title", title,

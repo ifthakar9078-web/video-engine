@@ -214,7 +214,7 @@ jobs:
 
           ANALYSIS_PROMPT = """Watch this video. It is a compilation of short tricks/hacks.
           Return ONLY JSON:
-          {"category": one of ["fruit-food","tools-home","woodworking","crafts","beauty","christmas","other"],
+          {"category": one of ["fruit-food","tools-home","woodworking","crafts","beauty","christmas"] — or a NEW short lowercase-hyphen label (e.g. "car-repair") if none of these fits. NEVER use "other" — every video belongs to a real, named category,
            "has_captions": true if the video already has burned-in text captions, else false,
            "segments": [{"start": <seconds>, "end": <seconds>, "desc": "short description of the trick shown", "reveal": <1-10, how strong the finished-result reveal is>}]}
           Rules: one segment per individual trick, each 3 to 25 seconds, in time order, no overlaps."""
@@ -231,7 +231,7 @@ jobs:
                       data = json.loads(txt)
                       if isinstance(data, list):
                           wrapped = next((d for d in data if isinstance(d, dict) and "segments" in d), None)
-                          data = wrapped if wrapped is not None else {"category": "other", "has_captions": False, "segments": data}
+                          data = wrapped if wrapped is not None else {"category": "life-hacks", "has_captions": False, "segments": data}
                       segs, last_end = [], 0.0
                       for s in data.get("segments", []):
                           a = max(0.0, float(s["start"])); b = min(float(s["end"]), dur, a + 25.0)
@@ -240,7 +240,7 @@ jobs:
                                        "reveal": float(s.get("reveal", 5))})
                           last_end = b
                       if not segs: raise RuntimeError("no usable segments")
-                      return {"category": data.get("category", "other"),
+                      return {"category": "life-hacks" if data.get("category") in (None, "", "other") else data.get("category"),
                               "has_captions": bool(data.get("has_captions", False)),
                               "segments": segs}
                   except Exception as e:

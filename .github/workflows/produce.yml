@@ -131,6 +131,9 @@ jobs:
           TTS_MODELS = ["gemini-2.5-flash-preview-tts", "gemini-3.1-flash-tts-preview",
                         "gemini-3.8-flash-tts", "gemini-3.8-flash-lite-tts"]
           WORK = Path("work"); WORK.mkdir(exist_ok=True)
+          VOICE = "am_michael"
+          VOICES = ["am_michael"]
+          VOICE_COUNTER = 0
           NUMWORDS = ["One","Two","Three","Four","Five","Six","Seven","Eight","Nine","Ten",
                       "Eleven","Twelve","Thirteen","Fourteen","Fifteen","Sixteen","Seventeen",
                       "Eighteen","Nineteen","Twenty"]
@@ -280,7 +283,7 @@ jobs:
                       from kokoro import KPipeline
                       _kokoro["pipe"] = KPipeline(lang_code='a')
                   if _kokoro["pipe"] is None: return False
-                  chunks = [a for _, _, a in _kokoro["pipe"](text, voice='am_michael', speed=1.1)]
+                  chunks = [a for _, _, a in _kokoro["pipe"](text, voice=VOICE, speed=1.1)]
                   if not chunks: return False
                   pcm = np.concatenate(chunks)
                   data = (np.clip(pcm, -1, 1) * 32767).astype(np.int16)
@@ -334,6 +337,7 @@ jobs:
 
           # ---------------- main ----------------
           def main():
+              global VOICE, VOICES, VOICE_COUNTER
               engine_status("running", "Production run started on GitHub")
               if not GEMINI_KEY:
                   engine_status("waiting-gemini-key",
@@ -345,6 +349,11 @@ jobs:
                   if settings.get("paused"):
                       engine_status("paused", "Paused from the board — no work started.")
                       return 0
+                  _vs = [v for v in (settings.get("voices") or []) if isinstance(v, str)]
+                  if _vs: VOICES = _vs
+                  VOICE_COUNTER = int(settings.get("voice_counter") or 0)
+                  VOICE = VOICES[VOICE_COUNTER % len(VOICES)]
+                  log(f"voice for this run: {VOICE} (slot {VOICE_COUNTER % len(VOICES) + 1} of {len(VOICES)})")
               except Exception as e:
                   log(f"settings check failed (continuing): {e}")
               # claim one job
@@ -472,6 +481,8 @@ jobs:
                   for pid in pooled_jobs:
                       set_stage(pid, "done", f"Clips pooled into {title}", output=url)
                   set_stage(jid, "done", f"{title} — {len(chosen)} clips from {nsrc} video(s), {total:.0f}s", output=url)
+                  try: qapi("POST", "/settings", {"voice_counter": VOICE_COUNTER + 1})
+                  except Exception as e: log(f"voice rotation save failed (ignored): {e}")
                   engine_status("idle", f"Produced {title} ({total:.0f}s).")
                   return 0
               except Exception as e:

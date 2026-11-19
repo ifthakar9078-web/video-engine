@@ -356,15 +356,17 @@ def gemini_generate(model, parts):
 
 ANALYSIS_PROMPT = """Watch this video. It is a compilation of short tricks/hacks.
 Return ONLY JSON:
-{"category": one of ["fruit-food","tools-home","woodworking","crafts","beauty","christmas","other"] — or a NEW short lowercase-hyphen label (e.g. "car-repair") if none of these fits,
+{"category": one of ["fruit-food","tools-home","woodworking","crafts","beauty","christmas"] — or a NEW short lowercase-hyphen label (e.g. "car-repair") if none of these fits. NEVER use "other" — every video belongs to a real, named category,
  "has_captions": true if the video already has burned-in text captions, else false,
  "segments": [{"start": <seconds>, "end": <seconds>, "desc": "short description of the trick shown", "reveal": <1-10, how strong the finished-result reveal is>}]}
 Rules: one segment per individual trick, each 3 to 25 seconds, in time order, no overlaps."""
 
 
 def clean_category(c):
-    c = re.sub(r"[^a-z0-9-]+", "-", str(c or "other").lower()).strip("-")
-    return c or "other"
+    c = re.sub(r"[^a-z0-9-]+", "-", str(c or "life-hacks").lower()).strip("-")
+    if c == "other":
+        c = "life-hacks"
+    return c or "life-hacks"
 
 
 def analyse(src, mime="video/mp4"):
@@ -379,7 +381,7 @@ def analyse(src, mime="video/mp4"):
             data = json.loads(txt)
             if isinstance(data, list):
                 wrapped = next((d for d in data if isinstance(d, dict) and "segments" in d), None)
-                data = wrapped if wrapped is not None else {"category": "other", "has_captions": False, "segments": data}
+                data = wrapped if wrapped is not None else {"category": "life-hacks", "has_captions": False, "segments": data}
             segs, last_end = [], 0.0
             for s in data.get("segments", []):
                 a = max(0.0, float(s["start"]))
@@ -391,7 +393,7 @@ def analyse(src, mime="video/mp4"):
                 last_end = b
             if not segs:
                 raise RuntimeError("no usable segments")
-            return {"category": clean_category(data.get("category", "other")),
+            return {"category": clean_category(data.get("category", "life-hacks")),
                     "has_captions": bool(data.get("has_captions", False)),
                     "segments": segs}
         except Exception as e:

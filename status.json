@@ -1,74 +1,74 @@
 {
  "cloud_runs": [
   {
-   "conclusion": null,
-   "created_at": "2026-11-19T12:09:59Z",
-   "id": 44521344973,
-   "status": "in_progress",
-   "updated_at": "2026-11-19T12:10:04Z"
+   "conclusion": "success",
+   "created_at": "2026-11-19T14:41:24Z",
+   "id": 44546479535,
+   "status": "completed",
+   "updated_at": "2026-11-19T14:45:16Z"
   },
   {
    "conclusion": "success",
-   "created_at": "2026-11-19T11:52:15Z",
-   "id": 44518650836,
+   "created_at": "2026-11-19T14:39:22Z",
+   "id": 44546106989,
    "status": "completed",
-   "updated_at": "2026-11-19T11:59:25Z"
+   "updated_at": "2026-11-19T14:43:20Z"
   },
   {
    "conclusion": "success",
-   "created_at": "2026-11-19T11:49:04Z",
-   "id": 44518180711,
+   "created_at": "2026-11-19T14:29:20Z",
+   "id": 44544270738,
    "status": "completed",
-   "updated_at": "2026-11-19T11:49:13Z"
+   "updated_at": "2026-11-19T14:33:18Z"
   },
   {
    "conclusion": "success",
-   "created_at": "2026-11-19T10:51:49Z",
-   "id": 44509565299,
+   "created_at": "2026-11-19T14:14:16Z",
+   "id": 44541559156,
    "status": "completed",
-   "updated_at": "2026-11-19T10:51:59Z"
+   "updated_at": "2026-11-19T14:14:27Z"
   },
   {
    "conclusion": "success",
-   "created_at": "2026-11-19T09:52:17Z",
-   "id": 44500365103,
+   "created_at": "2026-11-19T13:54:58Z",
+   "id": 44538219374,
    "status": "completed",
-   "updated_at": "2026-11-19T09:52:26Z"
+   "updated_at": "2026-11-19T13:58:09Z"
   },
   {
    "conclusion": "success",
-   "created_at": "2026-11-19T08:52:31Z",
-   "id": 44491328282,
+   "created_at": "2026-11-19T13:40:02Z",
+   "id": 44535724599,
    "status": "completed",
-   "updated_at": "2026-11-19T08:52:40Z"
+   "updated_at": "2026-11-19T13:40:12Z"
   },
   {
    "conclusion": "success",
-   "created_at": "2026-11-19T07:50:17Z",
-   "id": 44482685647,
+   "created_at": "2026-11-19T13:38:44Z",
+   "id": 44535513820,
    "status": "completed",
-   "updated_at": "2026-11-19T07:50:28Z"
+   "updated_at": "2026-11-19T13:38:56Z"
   },
   {
    "conclusion": "success",
-   "created_at": "2026-11-19T07:45:44Z",
-   "id": 44482102515,
+   "created_at": "2026-11-19T13:37:02Z",
+   "id": 44535235005,
    "status": "completed",
-   "updated_at": "2026-11-19T07:49:01Z"
+   "updated_at": "2026-11-19T13:37:14Z"
   },
   {
    "conclusion": "success",
-   "created_at": "2026-11-19T07:41:13Z",
-   "id": 44481523741,
+   "created_at": "2026-11-19T13:32:37Z",
+   "id": 44534489018,
    "status": "completed",
-   "updated_at": "2026-11-19T07:45:28Z"
+   "updated_at": "2026-11-19T13:37:32Z"
   },
   {
    "conclusion": "success",
-   "created_at": "2026-11-19T07:26:20Z",
-   "id": 44479618730,
+   "created_at": "2026-11-19T13:09:00Z",
+   "id": 44530593727,
    "status": "completed",
-   "updated_at": "2026-11-19T07:32:22Z"
+   "updated_at": "2026-11-19T13:09:11Z"
   }
  ],
  "failures": [
@@ -79,6 +79,14 @@
   {
    "name": "compilation-tools-home-4.mp4",
    "reason": "Cloud render timed out: GitHub Actions run 44521344973 still in_progress with no artifact after 15 minutes from dispatch (12:09:58-12:25:28 UTC); bundle published OK, dispatch accepted (204). Clips left unused for rebuild."
+  },
+  {
+   "name": "compilation-christmas-1.mp4",
+   "reason": "Verification failed: narration/captions said umbrella tinsel tree / ornaments on a string / stacked log tree for 3 clips from source 1e4lXQU3, but frames show white fabric tree folding, wall tinsel tree with string lights, and door-frame tinsel garland instead. Source 1e4lXQU3 labels are shifted/misaligned in places (same failure class as fruit-food-2). Render run 44538219374 (success) NOT delivered, clips left unused for rebuild. Descs corrected from frames below."
+  },
+  {
+   "name": "compilation-christmas-1.mp4",
+   "reason": "Rebuild attempt: render run 44544270738 succeeded but output was 96.3s instead of 86.1s - the bundle dir was reused from the first build and stale clip 008.mp4 (bottle tinsel tree) plus voice 008.mp3 were left in it; the cloud renderer globs clips/*.mp4 and appended the stale clip at the end. NOT delivered. Fix: delete stale files, regenerate bundle cleanly, re-render."
   }
  ],
  "outputs": [
@@ -213,6 +221,39 @@
    "render": "github-actions run 44518650836",
    "size_bytes": 52068290,
    "when": "2026-11-19T17:01:12+05:00"
+  },
+  {
+   "category": "tools-home",
+   "clips": [
+    "17TMBJh--16.mp4",
+    "17TMBJh--21.mp4",
+    "1MwCnzn4-12.mp4",
+    "1MwCnzn4-23.mp4",
+    "1N-ZZxt7-16.mp4",
+    "1g9Yn0SQ-15.mp4",
+    "1g9Yn0SQ-16.mp4",
+    "1oUEzHug-05.mp4",
+    "1oUEzHug-13.mp4",
+    "1q5rgi0V-09.mp4"
+   ],
+   "drive_id": "1fh1MBptRAP2rV8ldT7M-BxkFU5__gZbu",
+   "drive_link": "https://drive.google.com/file/d/1fh1MBptRAP2rV8ldT7M-BxkFU5__gZbu/view",
+   "duration_sec": 74.9,
+   "name": "compilation-tools-home-4.mp4",
+   "render": "github-actions run 44534489018 (retry of failed run 44521344973; same bundle)",
+   "size_bytes": 61311323,
+   "when": "2026-11-19T18:42:44+05:00"
+  },
+  {
+   "category": "christmas",
+   "clips": 7,
+   "drive_id": "1t4QKY8EiBEFBbzmXAZpMAvnqpoQjRzu_",
+   "drive_link": "https://drive.google.com/file/d/1t4QKY8EiBEFBbzmXAZpMAvnqpoQjRzu_/view",
+   "duration": 86.1,
+   "name": "compilation-christmas-1.mp4",
+   "render": "github-actions run 44546479535 (clean rebuild; two earlier attempts failed verification, not delivered)",
+   "status": "delivered",
+   "when": "2026-11-19T19:49:35+05:00"
   }
  ],
  "sources": [
@@ -235,7 +276,7 @@
   {
    "category": "tools-home",
    "clips": 21,
-   "clips_used": 4,
+   "clips_used": 5,
    "name": "17K views  84 reactions  Creative Craft Ideas and smart Life.mp4",
    "seconds": 180.2,
    "status": "analysed"
@@ -259,7 +300,7 @@
   {
    "category": "tools-home",
    "clips": 21,
-   "clips_used": 3,
+   "clips_used": 4,
    "name": "10K views  63 reactions  The best home improvements often be.mp4",
    "seconds": 181.4,
    "status": "analysed"
@@ -267,7 +308,7 @@
   {
    "category": "tools-home",
    "clips": 29,
-   "clips_used": 3,
+   "clips_used": 5,
    "name": "13K views  50 reactions  The best home improvements often be.mp4",
    "seconds": 241.0,
    "status": "analysed"
@@ -291,7 +332,7 @@
   {
    "category": "tools-home",
    "clips": 27,
-   "clips_used": 0,
+   "clips_used": 2,
    "name": "10K views  50 reactions  A little creativity can go a long w.mp4",
    "seconds": 185.4,
    "status": "analysed"
@@ -299,7 +340,7 @@
   {
    "category": "christmas",
    "clips": 66,
-   "clips_used": 0,
+   "clips_used": 2,
    "name": "14K views  108 reactions  Christmas Decor Ideas and Clever H.mp4",
    "seconds": 530.3,
    "status": "analysed"
@@ -323,7 +364,7 @@
   {
    "category": "tools-home",
    "clips": 25,
-   "clips_used": 0,
+   "clips_used": 2,
    "name": "22K views  56 reactions  You dont always need expensive equi.mp4",
    "seconds": 181.0,
    "status": "analysed"
@@ -331,7 +372,7 @@
   {
    "category": "tools-home",
    "clips": 21,
-   "clips_used": 0,
+   "clips_used": 2,
    "name": "84K views  16 reactions  Essential Hose and Pipe Tricks for .mp4",
    "seconds": 161.3,
    "status": "analysed"
@@ -351,13 +392,45 @@
    "name": "14K views  35 reactions  Woodworking Experiments That Combin.mp4",
    "seconds": 182.6,
    "status": "analysed"
+  },
+  {
+   "category": "fruit-food",
+   "clips": 21,
+   "clips_used": 0,
+   "name": "87K views  35 reactions  These Food Hacks Are Too Good Not t.mp4",
+   "seconds": 161.8,
+   "status": "analysed"
+  },
+  {
+   "category": "christmas",
+   "clips": 28,
+   "clips_used": 5,
+   "name": "44K views  29 reactions  Wonderful DIY Christmas Decorations.mp4",
+   "seconds": 180.1,
+   "status": "analysed"
+  },
+  {
+   "category": "tools-home",
+   "clips": 19,
+   "clips_used": 0,
+   "name": "12K views  27 reactions  Creative Drill Machine Techniques f.mp4",
+   "seconds": 180.1,
+   "status": "analysed"
+  },
+  {
+   "category": "tools-home",
+   "clips": 19,
+   "clips_used": 0,
+   "name": "8K views  29 reactions  Advanced Electrical Wiring Tricks Ca.mp4",
+   "seconds": 180.8,
+   "status": "analysed"
   }
  ],
  "summary": {
-  "analysed": 17,
-  "failed": 2,
+  "analysed": 21,
+  "failed": 4,
   "inbox_total": 28,
-  "outputs_done": 7,
+  "outputs_done": 9,
   "pools": {
    "beauty": {
     "clips": 24,
@@ -366,22 +439,22 @@
     "seconds_free": 180.2
    },
    "christmas": {
-    "clips": 66,
-    "clips_used": 0,
-    "seconds": 530.3,
-    "seconds_free": 530.3
+    "clips": 94,
+    "clips_used": 7,
+    "seconds": 710.4,
+    "seconds_free": 624.3
    },
    "fruit-food": {
-    "clips": 38,
+    "clips": 59,
     "clips_used": 29,
-    "seconds": 360.9,
-    "seconds_free": 61.2
+    "seconds": 522.7,
+    "seconds_free": 223.0
    },
    "tools-home": {
-    "clips": 247,
-    "clips_used": 18,
-    "seconds": 2093.9,
-    "seconds_free": 1858.5
+    "clips": 285,
+    "clips_used": 28,
+    "seconds": 2454.8,
+    "seconds_free": 2144.5
    },
    "woodworking": {
     "clips": 42,
@@ -391,5 +464,5 @@
    }
   }
  },
- "updated_at": "2026-11-19 17:25 PKT"
+ "updated_at": "2026-11-19 19:49 PKT"
 }

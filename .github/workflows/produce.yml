@@ -1,0 +1,466 @@
+# Production workflow — the 24/7 cloud engine of the AI Video Compiler.
+# Placement: .github/workflows/produce.yml in ifthakar9078-web/video-engine
+# (render_bundle.py must sit at the repo root — it is checked out below).
+#
+# Flow per run: claim ONE queued job from the Cloudflare queue Worker ->
+# download -> Gemini analysis/segmentation -> pool same-category sources ->
+# fresh script (reference style) -> Kokoro TTS voice (am_michael, 1.1x;
+# Gemini TTS Charon fallback) -> render_bundle.py (H.265 CRF 19) ->
+# publish as a GitHub Release asset -> report DONE + URL to the Worker.
+#
+# Required repo secrets: QUEUE_KEY (set), GEMINI_API_KEY (added by the user;
+# without it the run reports "waiting for Gemini key" and exits 0).
+name: produce
+
+on:
+  workflow_dispatch:
+    inputs:
+      job_id:
+        description: "Optional: produce this specific queued job id"
+        required: false
+        type: string
+  schedule:
+    - cron: "*/30 * * * *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: produce
+  cancel-in-progress: false
+
+jobs:
+  produce:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    env:
+      QUEUE_URL: "https://video-compiler-queue.hi-rajabahmad.workers.dev"
+    steps:
+      - name: Check out engine repo
+        uses: actions/checkout@v4
+
+      - name: Preflight — skip heavy work when the queue is empty
+        id: preflight
+        env:
+          QUEUE_KEY: ${{ secrets.QUEUE_KEY }}
+          JOB_ID: ${{ inputs.job_id }}
+        run: |
+          if [ -n "$JOB_ID" ]; then echo "skip=false" >> "$GITHUB_OUTPUT"; exit 0; fi
+          N=$(curl -s -H "X-Queue-Key: $QUEUE_KEY" "$QUEUE_URL/jobs" | python3 -c "import json,sys; d=json.load(sys.stdin); print(sum(1 for j in d.get('jobs',[]) if j.get('status')=='queued'))" || echo 1)
+          echo "queued jobs: $N"
+          if [ "$N" = "0" ]; then echo "skip=true" >> "$GITHUB_OUTPUT"; else echo "skip=false" >> "$GITHUB_OUTPUT"; fi
+
+      - name: Set up Python
+        if: steps.preflight.outputs.skip != 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Cache Kokoro / HuggingFace models
+        if: steps.preflight.outputs.skip != 'true'
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: kokoro-hf-v1
+
+      - name: Install system tools (ffmpeg, espeak-ng)
+        if: steps.preflight.outputs.skip != 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg espeak-ng
+
+      - name: Install Python tools (Kokoro TTS, yt-dlp)
+        if: steps.preflight.outputs.skip != 'true'
+        continue-on-error: true
+        run: pip install kokoro yt-dlp
+
+      - name: Voice sample (Kokoro am_michael @ 1.1x)
+        if: steps.preflight.outputs.skip != 'true'
+        continue-on-error: true
+        run: |
+          cat > voice_sample.py <<'PYEOF'
+          import wave
+          import numpy as np
+          from kokoro import KPipeline
+          TEXT = ("Why did nobody tell me these tricks sooner? "
+                  "Number one — this is the voice of your video compiler. "
+                  "Fast, clear, and made to hold attention to the very last second.")
+          pipe = KPipeline(lang_code='a')
+          chunks = [a for _, _, a in pipe(TEXT, voice='am_michael', speed=1.1)]
+          pcm = np.concatenate(chunks) if chunks else np.zeros(2400, dtype=np.float32)
+          data = (np.clip(pcm, -1, 1) * 32767).astype(np.int16)
+          with wave.open('voice-sample.wav', 'wb') as w:
+              w.setnchannels(1); w.setsampwidth(2); w.setframerate(24000)
+              w.writeframes(data.tobytes())
+          print('voice-sample.wav written', len(data) / 24000.0, 'seconds')
+          PYEOF
+          python3 voice_sample.py
+
+      - name: Upload voice sample
+        if: always() && steps.preflight.outputs.skip != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: voice-sample
+          path: voice-sample.wav
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Produce one compilation
+        if: steps.preflight.outputs.skip != 'true'
+        env:
+          QUEUE_KEY: ${{ secrets.QUEUE_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GH_TOKEN: ${{ github.token }}
+          JOB_ID: ${{ inputs.job_id }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          cat > produce.py <<'PYEOF'
+          import json, os, random, re, shutil, subprocess, sys, time
+          import urllib.request, urllib.error
+          from pathlib import Path
+
+          QUEUE_URL = os.environ.get("QUEUE_URL", "https://video-compiler-queue.hi-rajabahmad.workers.dev").rstrip("/")
+          QUEUE_KEY = os.environ.get("QUEUE_KEY", "")
+          GEMINI_KEY = os.environ.get("GEMINI_API_KEY", "")
+          JOB_ID = os.environ.get("JOB_ID", "").strip()
+          RUN_URL = os.environ.get("RUN_URL", "")
+          REPO = "ifthakar9078-web/video-engine"
+          API = "https://generativelanguage.googleapis.com/v1beta"
+          ANALYSIS_MODELS = ["gemini-3.8-flash", "gemini-3.5-flash-lite"]
+          TTS_MODELS = ["gemini-2.5-flash-preview-tts", "gemini-3.1-flash-tts-preview",
+                        "gemini-3.8-flash-tts", "gemini-3.8-flash-lite-tts"]
+          WORK = Path("work"); WORK.mkdir(exist_ok=True)
+          NUMWORDS = ["One","Two","Three","Four","Five","Six","Seven","Eight","Nine","Ten",
+                      "Eleven","Twelve","Thirteen","Fourteen","Fifteen","Sixteen","Seventeen",
+                      "Eighteen","Nineteen","Twenty"]
+
+          def log(m): print(f"[{time.strftime('%H:%M:%S')}] {m}", flush=True)
+          def run(cmd, **kw):
+              r = subprocess.run(cmd, capture_output=True, text=True, **kw)
+              return r
+          def ffprobe_dur(p):
+              r = run(["ffprobe","-v","error","-show_entries","format=duration","-of","csv=p=0",str(p)])
+              try: return float(r.stdout.strip())
+              except Exception: return 0.0
+          def probe_wh(p):
+              r = run(["ffprobe","-v","error","-select_streams","v:0","-show_entries",
+                       "stream=width,height","-of","csv=p=0",str(p)])
+              try:
+                  w,h = r.stdout.strip().split(","); return int(w), int(h)
+              except Exception: return 720, 1280
+
+          # ---------------- queue worker ----------------
+          def qapi(method, path, payload=None):
+              req = urllib.request.Request(QUEUE_URL + path, method=method,
+                  data=json.dumps(payload).encode() if payload is not None else None,
+                  headers={"Content-Type": "application/json", "X-Queue-Key": QUEUE_KEY})
+              with urllib.request.urlopen(req, timeout=60) as r:
+                  return json.loads(r.read())
+          def set_stage(jid, stage, note="", error=None, output=None):
+              log(f"job {jid}: {stage} {note}")
+              body = {"stage": stage, "note": note}
+              if error is not None: body["error"] = error
+              if output is not None: body["output"] = output
+              try: qapi("POST", f"/jobs/{jid}/status", body)
+              except Exception as e: log(f"stage report failed (ignored): {e}")
+          def engine_status(state, note):
+              log(f"engine: {state} — {note}")
+              try: qapi("POST", "/engine-status", {"state": state, "note": note, "run_url": RUN_URL})
+              except Exception as e: log(f"engine status failed (ignored): {e}")
+
+          # ---------------- gemini ----------------
+          def gpost(url, payload):
+              req = urllib.request.Request(url, data=json.dumps(payload).encode(),
+                  headers={"Content-Type": "application/json", "x-goog-api-key": GEMINI_KEY})
+              with urllib.request.urlopen(req, timeout=300) as r:
+                  return json.loads(r.read())
+          def gemini_upload(path):
+              data = Path(path).read_bytes()
+              req = urllib.request.Request(f"{API}/upload/files?key={GEMINI_KEY}", data=data,
+                  headers={"X-Goog-Upload-Protocol": "raw", "Content-Type": "video/mp4"})
+              with urllib.request.urlopen(req, timeout=900) as r:
+                  f = json.loads(r.read())["file"]
+              for _ in range(40):
+                  req = urllib.request.Request(f"{API}/{f['name']}",
+                      headers={"x-goog-api-key": GEMINI_KEY})
+                  with urllib.request.urlopen(req, timeout=60) as r:
+                      info = json.loads(r.read())
+                  if info.get("state") == "ACTIVE": return info
+                  if info.get("state") == "FAILED": raise RuntimeError("Gemini file processing FAILED")
+                  time.sleep(5)
+              return f
+          def gemini_generate(model, parts):
+              out = gpost(f"{API}/models/{model}:generateContent",
+                          {"contents": [{"parts": parts}],
+                           "generationConfig": {"responseMimeType": "application/json"}})
+              return out["candidates"][0]["content"]["parts"][0]["text"]
+
+          ANALYSIS_PROMPT = """Watch this video. It is a compilation of short tricks/hacks.
+          Return ONLY JSON:
+          {"category": one of ["fruit-food","tools-home","woodworking","crafts","beauty","christmas","other"],
+           "has_captions": true if the video already has burned-in text captions, else false,
+           "segments": [{"start": <seconds>, "end": <seconds>, "desc": "short description of the trick shown", "reveal": <1-10, how strong the finished-result reveal is>}]}
+          Rules: one segment per individual trick, each 3 to 25 seconds, in time order, no overlaps."""
+
+          def analyse(src):
+              f = gemini_upload(src)
+              dur = ffprobe_dur(src)
+              last = None
+              for model in ANALYSIS_MODELS:
+                  try:
+                      txt = gemini_generate(model, [
+                          {"fileData": {"fileUri": f["uri"], "mimeType": "video/mp4"}},
+                          {"text": ANALYSIS_PROMPT}])
+                      data = json.loads(txt)
+                      segs, last_end = [], 0.0
+                      for s in data.get("segments", []):
+                          a = max(0.0, float(s["start"])); b = min(float(s["end"]), dur, a + 25.0)
+                          if b - a < 3.0 or a < last_end - 0.3: continue
+                          segs.append({"start": a, "end": b, "desc": str(s.get("desc", "trick"))[:90],
+                                       "reveal": float(s.get("reveal", 5))})
+                          last_end = b
+                      if not segs: raise RuntimeError("no usable segments")
+                      return {"category": data.get("category", "other"),
+                              "has_captions": bool(data.get("has_captions", False)),
+                              "segments": segs}
+                  except Exception as e:
+                      last = e; continue
+              raise RuntimeError(f"analysis failed: {last}")
+
+          SCRIPT_PROMPT = """You write viral hack-compilation narration. Follow this reference blueprint EXACTLY (taken from a top-performing painting-hacks compilation):
+          - HOOK first, a curiosity gap that makes the viewer feel a secret was kept from them. Reference hook: "Why did nobody tell me these painting tricks sooner?" Write the same form for THIS niche.
+          - Then one line per trick. Each line: open with a pain-point question or curiosity line, give the step, end with the payoff/benefit. Reference lines: "Hate cleaning paint trays?" / "Still bending over and sticking down floor protection little by little?" / "It works even better than using tape."
+          - Fast, energetic, authoritative. Narration must fill the clip: words ~= slot_seconds x 2.5. Zero filler, zero dead air.
+          - Keep an OPEN LOOP: somewhere in the middle lines, tease that the best/last trick is still coming, so viewers hold to the final second.
+          - Do NOT number the lines (numbering is added by the renderer). No repeated openings.
+          - CTA at the end, save-form: "Save these tricks for later, and follow for more." (adapt the wording to the niche).
+          Return ONLY JSON: {"hook_line": "...", "lines": ["...", ...], "cta": "..."} with exactly one line per clip, in the order given.
+          Clips (final order, slot seconds, what is shown):
+          """
+
+          def write_script(clips):
+              listing = "\n".join(f"{i+1}. ({c['dur']:.1f}s) {c['desc']}" for i, c in enumerate(clips))
+              last = None
+              for model in ANALYSIS_MODELS:
+                  try:
+                      txt = gemini_generate(model, [{"text": SCRIPT_PROMPT + listing}])
+                      data = json.loads(txt)
+                      if len(data.get("lines", [])) != len(clips): raise RuntimeError("line count mismatch")
+                      return data
+                  except Exception as e:
+                      last = e; continue
+              raise RuntimeError(f"script failed: {last}")
+
+          # ---------------- voice ----------------
+          _kokoro = {"pipe": None, "tried": False}
+          def kokoro_wav(text, out_wav):
+              try:
+                  import numpy as np, wave
+                  if not _kokoro["tried"]:
+                      _kokoro["tried"] = True
+                      from kokoro import KPipeline
+                      _kokoro["pipe"] = KPipeline(lang_code='a')
+                  if _kokoro["pipe"] is None: return False
+                  chunks = [a for _, _, a in _kokoro["pipe"](text, voice='am_michael', speed=1.1)]
+                  if not chunks: return False
+                  pcm = np.concatenate(chunks)
+                  data = (np.clip(pcm, -1, 1) * 32767).astype(np.int16)
+                  with wave.open(str(out_wav), "wb") as w:
+                      w.setnchannels(1); w.setsampwidth(2); w.setframerate(24000)
+                      w.writeframes(data.tobytes())
+                  return True
+              except Exception as e:
+                  log(f"kokoro failed: {e}"); _kokoro["pipe"] = None; return False
+          def gemini_tts_wav(text, out_wav):
+              import base64, wave
+              for model in TTS_MODELS:
+                  try:
+                      out = gpost(f"{API}/models/{model}:generateContent", {
+                          "contents": [{"parts": [{"text": text}]}],
+                          "generationConfig": {"responseModalities": ["AUDIO"],
+                              "speechConfig": {"voiceConfig": {"prebuiltVoiceConfig": {"voiceName": "Charon"}}}}})
+                      rawb = base64.b64decode(out["candidates"][0]["content"]["parts"][0]["inlineData"]["data"])
+                      if rawb[:4] == b"RIFF": Path(out_wav).write_bytes(rawb)
+                      else:
+                          with wave.open(str(out_wav), "wb") as w:
+                              w.setnchannels(1); w.setsampwidth(2); w.setframerate(24000); w.writeframes(rawb)
+                      return True
+                  except Exception:
+                      continue
+              return False
+          def synth_block(text, out_mp3):
+              wav = Path(str(out_mp3) + ".wav")
+              if not kokoro_wav(text, wav) and not gemini_tts_wav(text, wav):
+                  raise RuntimeError("voice synthesis failed (Kokoro and Gemini TTS)")
+              r = run(["ffmpeg","-y","-v","error","-i",str(wav),"-ar","44100","-codec:a","libmp3lame","-b:a","192k",str(out_mp3)])
+              if r.returncode != 0: raise RuntimeError("voice convert failed")
+
+          # ---------------- media helpers ----------------
+          def download(link, dest):
+              if re.search(r"\.(mp4|mov|mkv|webm)(\?|$)", link, re.I):
+                  r = run(["curl","-fL","--retry","2","-o",str(dest),link])
+                  if r.returncode == 0 and dest.exists(): return
+              r = run(["yt-dlp","-f","bv*[height<=2160]+ba/b","--merge-output-format","mp4","-o",str(dest),link])
+              if r.returncode != 0 or not dest.exists():
+                  r2 = run(["curl","-fL","--retry","2","-o",str(dest),link])
+                  if r2.returncode != 0 or not dest.exists():
+                      raise RuntimeError("download failed: " + (r.stderr or "")[-250:])
+          def cut(src, a, b, dest):
+              r = run(["ffmpeg","-y","-v","error","-ss",str(a),"-to",str(b),"-i",str(src),
+                       "-c:v","libx264","-crf","10","-preset","veryfast","-pix_fmt","yuv420p","-an",str(dest)])
+              if r.returncode != 0: raise RuntimeError("cut failed: " + r.stderr[-250:])
+          def fmt_t(s):
+              h, m = int(s//3600), int((s%3600)//60)
+              return f"{h:02d}:{m:02d}:{s%60:06.3f}".replace(".", ",")
+
+          # ---------------- main ----------------
+          def main():
+              engine_status("running", "Production run started on GitHub")
+              if not GEMINI_KEY:
+                  engine_status("waiting-gemini-key",
+                      "Add the GEMINI_API_KEY secret (repo Settings, Secrets and variables, Actions), then production runs on its own.")
+                  log("GEMINI_API_KEY secret is not set — stopping cleanly.")
+                  return 0
+              try:
+                  settings = qapi("GET", "/settings")
+                  if settings.get("paused"):
+                      engine_status("paused", "Paused from the board — no work started.")
+                      return 0
+              except Exception as e:
+                  log(f"settings check failed (continuing): {e}")
+              # claim one job
+              job = None
+              listing = qapi("GET", "/jobs").get("jobs", [])
+              if JOB_ID:
+                  job = next((j for j in listing if j["id"] == JOB_ID and j["status"] == "queued"), None)
+                  if not job:
+                      engine_status("idle", f"Requested job {JOB_ID} is not queued.")
+                      return 0
+              else:
+                  job = qapi("GET", "/next")
+                  if not job:
+                      engine_status("idle", "Queue is empty — nothing to produce.")
+                      return 0
+              jid = job["id"]
+              pool = []          # {file, dur, desc, reveal, source_name, has_captions, w, h}
+              pooled_jobs = []
+              try:
+                  set_stage(jid, "downloading", job.get("link", "")[:80])
+                  src = WORK / f"{jid}.mp4"; download(job["link"], src)
+                  set_stage(jid, "analysing")
+                  info = analyse(src)
+                  category = info["category"]
+                  main_src_name = job.get("name") or job.get("link", "")
+                  # pool extra queued sources of the same category (max 3 more)
+                  candidates = [j for j in listing if j["status"] == "queued" and j["id"] != jid][:3]
+                  sources = [(jid, src, info, main_src_name)]
+                  for cand in candidates:
+                      cid = cand["id"]
+                      try:
+                          set_stage(cid, "analysing", "checking category for pooling")
+                          csrc = WORK / f"{cid}.mp4"; download(cand["link"], csrc)
+                          cinfo = analyse(csrc)
+                          if cinfo["category"] == category:
+                              sources.append((cid, csrc, cinfo, cand.get("name") or cand.get("link", "")))
+                              pooled_jobs.append(cid)
+                          else:
+                              set_stage(cid, "queued", f"category {cinfo['category']} — left queued")
+                      except Exception as e:
+                          log(f"pool candidate {cid} skipped: {e}")
+                          try: set_stage(cid, "queued", "pooling check failed — left queued")
+                          except Exception: pass
+                  set_stage(jid, "cutting", f"category: {category}")
+                  for sid, ssrc, sinfo, sname in sources:
+                      w, h = probe_wh(ssrc)
+                      for n, seg in enumerate(sinfo["segments"]):
+                          clip = WORK / f"clip-{sid[-6:]}-{n:02d}.mp4"
+                          cut(ssrc, seg["start"], seg["end"], clip)
+                          pool.append({"file": str(clip), "dur": seg["end"] - seg["start"],
+                                       "desc": seg["desc"], "reveal": seg["reveal"],
+                                       "source_name": sname, "has_captions": sinfo["has_captions"],
+                                       "w": w, "h": h})
+                  total_pool = sum(c["dur"] for c in pool)
+                  if total_pool < 61:
+                      raise RuntimeError(f"not enough usable clips: {total_pool:.0f}s (need 61s+)")
+                  # choose the compilation: strongest reveal first, rest shuffled, 61-90s
+                  hook = max(pool, key=lambda c: c["reveal"])
+                  rest = [c for c in pool if c is not hook]
+                  random.shuffle(rest)
+                  chosen, total = [hook], hook["dur"]
+                  for c in rest:
+                      if total + c["dur"] <= 90.0: chosen.append(c); total += c["dur"]
+                      if total >= 75: break
+                  if total < 61:
+                      for c in rest:
+                          if c in chosen: continue
+                          if total + c["dur"] <= 90.0: chosen.append(c); total += c["dur"]
+                          if total >= 61: break
+                  if total < 61: raise RuntimeError(f"could not reach 61s (got {total:.0f}s)")
+                  nsrc = len({c["source_name"] for c in chosen})
+                  set_stage(jid, "scripting", f"{len(chosen)} clips from {nsrc} video(s), {total:.0f}s")
+                  script = write_script(chosen)
+                  # per-slot narration: slot 0 = hook + trick 1; last slot also carries the CTA
+                  blocks = []
+                  for i, c in enumerate(chosen):
+                      num = NUMWORDS[i] if i < len(NUMWORDS) else str(i + 1)
+                      text = f"{num} — {script['lines'][i]}"
+                      if i == 0: text = f"{script['hook_line']} {text}"
+                      if i == len(chosen) - 1: text = f"{text} {script['cta']}"
+                      blocks.append(text)
+                  set_stage(jid, "voicing")
+                  bundle = WORK / "bundle"
+                  (bundle / "clips").mkdir(parents=True, exist_ok=True)
+                  (bundle / "voice").mkdir(parents=True, exist_ok=True)
+                  starts, t = [], 0.0
+                  for i, c in enumerate(chosen):
+                      starts.append(t); t += c["dur"]
+                      r = run(["ffmpeg","-y","-v","error","-i",c["file"],"-an","-c:v","copy",
+                               str(bundle / "clips" / f"{i+1:03d}.mp4")])
+                      if r.returncode != 0:
+                          run(["ffmpeg","-y","-v","error","-i",c["file"],"-an","-c:v","libx264","-crf","10",
+                               "-preset","veryfast",str(bundle / "clips" / f"{i+1:03d}.mp4")], check=True)
+                      synth_block(blocks[i], bundle / "voice" / f"{i+1:03d}.mp3")
+                  # dominant resolution
+                  dims = {}
+                  for c in chosen: dims[(c["w"], c["h"])] = dims.get((c["w"], c["h"]), 0) + 1
+                  (W, H) = max(dims.items(), key=lambda kv: kv[1])[0]
+                  title = f"compilation-{category}-{jid[-6:]}"
+                  any_captions = any(c["has_captions"] for c in chosen)
+                  captions = None
+                  if not any_captions:
+                      captions = [{"start": round(starts[i], 2), "end": round(starts[i] + chosen[i]["dur"], 2),
+                                   "text": blocks[i]} for i in range(len(chosen))]
+                  else:
+                      srt = "\n".join(f"{i+1}\n{fmt_t(starts[i])} --> {fmt_t(starts[i] + chosen[i]['dur'])}\n{blocks[i]}\n"
+                                      for i in range(len(chosen)))
+                      (WORK / f"{title}.srt").write_text(srt)
+                  (bundle / "meta.json").write_text(json.dumps(
+                      {"title": title, "width": W, "height": H, "fps": 30,
+                       "hook_text": None, "captions": captions}, indent=2))
+                  set_stage(jid, "rendering", title)
+                  r = run(["python3", "render_bundle.py", str(bundle)])
+                  if r.returncode != 0: raise RuntimeError("render failed: " + (r.stderr or "")[-300:])
+                  final = WORK / f"{title}.mp4"
+                  shutil.copy(bundle / "final.mp4", final)
+                  tag = f"job-{jid}"
+                  files = [str(final)] + ([str(WORK / f"{title}.srt")] if any_captions else [])
+                  r = run(["gh", "release", "create", tag, *files, "--title", title,
+                           "--notes", f"Produced by the cloud engine from {nsrc} source video(s)."])
+                  if r.returncode != 0:
+                      r = run(["gh", "release", "upload", tag, *files, "--clobber"])
+                      if r.returncode != 0: raise RuntimeError("release publish failed: " + (r.stderr or "")[-250:])
+                  url = f"https://github.com/{REPO}/releases/download/{tag}/{title}.mp4"
+                  for pid in pooled_jobs:
+                      set_stage(pid, "done", f"Clips pooled into {title}", output=url)
+                  set_stage(jid, "done", f"{title} — {len(chosen)} clips from {nsrc} video(s), {total:.0f}s", output=url)
+                  engine_status("idle", f"Produced {title} ({total:.0f}s).")
+                  return 0
+              except Exception as e:
+                  set_stage(jid, "failed", "", error=str(e)[:280])
+                  engine_status("error", f"Job {jid} failed: {str(e)[:160]}")
+                  return 1
+          if __name__ == "__main__":
+              sys.exit(main())
+          PYEOF
+          python3 produce.py

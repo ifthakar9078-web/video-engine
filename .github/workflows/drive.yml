@@ -135,7 +135,7 @@ jobs:
           with open(os.environ["GITHUB_OUTPUT"], "a") as fh:
               fh.write(f"has_work={'true' if work else 'false'}\n")
           PYEOF
-          python3 plan.py
+          python3 plan.py 2>&1 | tee plan.log
 
       - name: Set up Python
         if: steps.plan.outputs.has_work == 'true'
@@ -192,6 +192,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: drive-log
-          path: drive.log
+          path: |
+            drive.log
+            plan.log
           if-no-files-found: ignore
           retention-days: 7

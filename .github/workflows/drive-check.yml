@@ -1,0 +1,51 @@
+# One-off verification: keyless (Workload Identity Federation) Drive access
+# from GitHub Actions. Lists the Video Inbox and Video Pools folders as the
+# video-engine service account — no key file anywhere.
+name: drive-check
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Authenticate to Google Cloud (keyless WIF)
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: "projects/978426160692/locations/global/workloadIdentityPools/github-pool/providers/github"
+          service_account: "video-engine@video-compiler-tool.iam.gserviceaccount.com"
+          token_format: "access_token"
+          access_token_scopes: "https://www.googleapis.com/auth/drive"
+
+      - name: Check Drive access
+        env:
+          TOKEN: ${{ steps.auth.outputs.access_token }}
+        run: |
+          set +e
+          {
+            echo "== Video Inbox (first 5 files) =="
+            curl -s -w "\nHTTP %{http_code}\n" -H "Authorization: Bearer $TOKEN" \
+              "https://www.googleapis.com/drive/v3/files?q=%271QtcFlEcXnKIDDr3NxLL3pTX51iSqDfNn%27%20in%20parents%20and%20trashed%3Dfalse&pageSize=5&fields=files(id,name,size)"
+            echo
+            echo "== Video Pools folder =="
+            curl -s -w "\nHTTP %{http_code}\n" -H "Authorization: Bearer $TOKEN" \
+              "https://www.googleapis.com/drive/v3/files/1Cx-EG5V7_1pe_CDYO-9rsRQYS59GSxzD?fields=id,name,mimeType"
+            echo
+            echo "== Video Finished folder =="
+            curl -s -w "\nHTTP %{http_code}\n" -H "Authorization: Bearer $TOKEN" \
+              "https://www.googleapis.com/drive/v3/files/1bVg1ktG65X2idppb_YuX-3H5S1GATkTI?fields=id,name,mimeType"
+          } | tee drive-check-result.txt
+
+      - name: Save result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: drive-check-result
+          path: drive-check-result.txt

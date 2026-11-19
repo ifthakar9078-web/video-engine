@@ -576,7 +576,7 @@ def _analyse_one(f):
 
 def cutter(board_sources):
     done_ids = {s.get("id") for s in board_sources
-                if s.get("stage") in ("pooled", "failed", "file-error", "duplicate")}
+                if s.get("stage") in ("pooled", "failed", "file-error", "duplicate", "skipped")}
     all_videos = [f for f in drive_list(INBOX_ID)
                   if str(f.get("mimeType", "")).startswith("video/")]
     # Empty uploads (0 bytes) can never be processed — flag each once on the
@@ -893,7 +893,7 @@ def main():
                 if int(f.get("size") or 0) <= 0:
                     continue
                 if stages.get(f"drive-{f['id']}") not in (
-                        "pooled", "failed", "file-error", "duplicate"):
+                        "pooled", "failed", "file-error", "duplicate", "skipped"):
                     uncut += 1
         except Exception as e:
             log(f"phase gate check failed ({e}) — merger proceeds")

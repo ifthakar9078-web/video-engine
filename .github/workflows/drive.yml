@@ -113,7 +113,10 @@ jobs:
                   if MODE in ("cutter", "both") and MAX_SOURCES > 0:
                       done = {s.get("id") for s in (board.get("sources") or [])
                               if s.get("stage") in ("pooled", "failed")}
-                      todo = [f for f in dlist(inbox_id)
+                      raw = dlist(inbox_id)
+                      print(f"cutter: inbox listing returned {len(raw)} file(s), done set has {len(done)}")
+                      if raw: print("cutter: first file:", {k: raw[0].get(k) for k in ("id", "name", "mimeType", "size")})
+                      todo = [f for f in raw
                               if str(f.get("mimeType", "")).startswith("video/")
                               and int(f.get("size") or 0) > 0
                               and f"drive-{f['id']}" not in done]

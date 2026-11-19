@@ -108,6 +108,11 @@ jobs:
               if settings.get("paused"):
                   print("board is paused — no work")
               else:
+                  try:
+                      about = get(f"{DRIVE}/about?fields=user", token=True)
+                      print("token user:", (about.get("user") or {}).get("emailAddress"))
+                  except Exception as e:
+                      print("about check failed:", e)
                   inbox_id = settings.get("inbox_folder_id") or "1QtcFlEcXnKIDDr3NxLL3pTX51iSqDfNn"
                   pools_id = settings.get("pools_folder_id") or "1Cx-EG5V7_1pe_CDYO-9rsRQYS59GSxzD"
                   if MODE in ("cutter", "both") and MAX_SOURCES > 0:

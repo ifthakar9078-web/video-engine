@@ -873,8 +873,32 @@ def main():
         n = cutter(board.get("sources") or [])
         did.append(f"cut {n} new source(s)")
     if MODE in ("merger", "both"):
-        n = merger()
-        did.append(f"built {n} compilation(s)")
+        # PHASE GATE (the user's phase model): merging is Phase 2 and starts
+        # only when Phase 1 (cutting) is complete — every Inbox video pooled,
+        # failed, a file-error or a duplicate. Anything still queued or
+        # unrecorded keeps the merger waiting for a later cycle.
+        uncut = 0
+        try:
+            fresh = get_board()
+            stages = {s.get("id"): s.get("stage")
+                      for s in fresh.get("sources") or []}
+            for f in drive_list(INBOX_ID):
+                if not str(f.get("mimeType", "")).startswith("video/"):
+                    continue
+                if int(f.get("size") or 0) <= 0:
+                    continue
+                if stages.get(f"drive-{f['id']}") not in (
+                        "pooled", "failed", "file-error", "duplicate"):
+                    uncut += 1
+        except Exception as e:
+            log(f"phase gate check failed ({e}) — merger proceeds")
+        if uncut:
+            log(f"merger: Phase 1 not complete — {uncut} video(s) still to "
+                f"cut; merging waits for a later cycle.")
+            did.append("merger waiting for Phase 1")
+        else:
+            n = merger()
+            did.append(f"built {n} compilation(s)")
     post_drive_pools()
     engine_status("idle", "Drive cycle finished: " + ", ".join(did) + ".")
     return 0

@@ -1,6 +1,41 @@
 {
  "cloud_runs": [
   {
+   "conclusion": null,
+   "created_at": "2026-11-19T12:09:59Z",
+   "id": 44521344973,
+   "status": "in_progress",
+   "updated_at": "2026-11-19T12:10:04Z"
+  },
+  {
+   "conclusion": "success",
+   "created_at": "2026-11-19T11:52:15Z",
+   "id": 44518650836,
+   "status": "completed",
+   "updated_at": "2026-11-19T11:59:25Z"
+  },
+  {
+   "conclusion": "success",
+   "created_at": "2026-11-19T11:49:04Z",
+   "id": 44518180711,
+   "status": "completed",
+   "updated_at": "2026-11-19T11:49:13Z"
+  },
+  {
+   "conclusion": "success",
+   "created_at": "2026-11-19T10:51:49Z",
+   "id": 44509565299,
+   "status": "completed",
+   "updated_at": "2026-11-19T10:51:59Z"
+  },
+  {
+   "conclusion": "success",
+   "created_at": "2026-11-19T09:52:17Z",
+   "id": 44500365103,
+   "status": "completed",
+   "updated_at": "2026-11-19T09:52:26Z"
+  },
+  {
    "conclusion": "success",
    "created_at": "2026-11-19T08:52:31Z",
    "id": 44491328282,
@@ -34,41 +69,6 @@
    "id": 44479618730,
    "status": "completed",
    "updated_at": "2026-11-19T07:32:22Z"
-  },
-  {
-   "conclusion": "success",
-   "created_at": "2026-11-19T07:13:22Z",
-   "id": 44477937666,
-   "status": "completed",
-   "updated_at": "2026-11-19T07:25:03Z"
-  },
-  {
-   "conclusion": "failure",
-   "created_at": "2026-11-19T07:02:38Z",
-   "id": 44476579211,
-   "status": "completed",
-   "updated_at": "2026-11-19T07:12:31Z"
-  },
-  {
-   "conclusion": "failure",
-   "created_at": "2026-11-19T06:58:13Z",
-   "id": 44476035942,
-   "status": "completed",
-   "updated_at": "2026-11-19T07:00:43Z"
-  },
-  {
-   "conclusion": "success",
-   "created_at": "2026-11-19T06:56:43Z",
-   "id": 44475864231,
-   "status": "completed",
-   "updated_at": "2026-11-19T06:56:51Z"
-  },
-  {
-   "conclusion": "success",
-   "created_at": "2026-11-19T06:53:13Z",
-   "id": 44475442194,
-   "status": "completed",
-   "updated_at": "2026-11-19T06:58:28Z"
   }
  ],
  "failures": [
@@ -186,6 +186,29 @@
    "render": "github-actions run 44482102515",
    "size_bytes": 39634119,
    "when": "2026-11-19T12:52:00+05:00"
+  },
+  {
+   "category": "fruit-food",
+   "clips": [
+    "1hK6Qb5c-06.mp4",
+    "1hK6Qb5c-04.mp4",
+    "1X-2gBq8-15.mp4",
+    "1X-2gBq8-04.mp4",
+    "1X-2gBq8-21.mp4",
+    "1hK6Qb5c-05.mp4",
+    "1hK6Qb5c-11.mp4",
+    "1X-2gBq8-19.mp4",
+    "1hK6Qb5c-12.mp4",
+    "1X-2gBq8-20.mp4",
+    "1X-2gBq8-07.mp4"
+   ],
+   "drive_id": "1g4oYIPxdSt5pXlju4M_Xn4O6QQJyKaii",
+   "drive_link": "https://drive.google.com/file/d/1g4oYIPxdSt5pXlju4M_Xn4O6QQJyKaii/view",
+   "duration_sec": 77.9,
+   "name": "compilation-fruit-food-4.mp4",
+   "render": "github-actions run 44518650836",
+   "size_bytes": 52068290,
+   "when": "2026-11-19T17:01:12+05:00"
   }
  ],
  "sources": [
@@ -200,7 +223,7 @@
   {
    "category": "fruit-food",
    "clips": 23,
-   "clips_used": 10,
+   "clips_used": 16,
    "name": "18K views  57 reactions  Tasty Egg Recipes and Cooking Hacks.mp4",
    "seconds": 180.5,
    "status": "analysed"
@@ -216,7 +239,7 @@
   {
    "category": "fruit-food",
    "clips": 15,
-   "clips_used": 8,
+   "clips_used": 13,
    "name": "24K views  80 reactions  Beautiful Fruit Carving Ideas for W.mp4",
    "seconds": 180.4,
    "status": "analysed"
@@ -276,13 +299,61 @@
    "name": "14K views  108 reactions  Christmas Decor Ideas and Clever H.mp4",
    "seconds": 530.3,
    "status": "analysed"
+  },
+  {
+   "category": "tools-home",
+   "clips": 24,
+   "clips_used": 0,
+   "name": "304K views  23K reactions  Crafting Experiments That Turn Un.mp4",
+   "seconds": 181.7,
+   "status": "analysed"
+  },
+  {
+   "category": "tools-home",
+   "clips": 22,
+   "clips_used": 0,
+   "name": "18K views  155 reactions  Turn simple materials into useful .mp4",
+   "seconds": 188.6,
+   "status": "analysed"
+  },
+  {
+   "category": "tools-home",
+   "clips": 25,
+   "clips_used": 0,
+   "name": "22K views  56 reactions  You dont always need expensive equi.mp4",
+   "seconds": 181.0,
+   "status": "analysed"
+  },
+  {
+   "category": "tools-home",
+   "clips": 21,
+   "clips_used": 0,
+   "name": "84K views  16 reactions  Essential Hose and Pipe Tricks for .mp4",
+   "seconds": 161.3,
+   "status": "analysed"
+  },
+  {
+   "category": "woodworking",
+   "clips": 22,
+   "clips_used": 0,
+   "name": "59K views  23 reactions  Creative Woodworking Projects Geniu.mp4",
+   "seconds": 181.6,
+   "status": "analysed"
+  },
+  {
+   "category": "woodworking",
+   "clips": 20,
+   "clips_used": 0,
+   "name": "14K views  35 reactions  Woodworking Experiments That Combin.mp4",
+   "seconds": 182.6,
+   "status": "analysed"
   }
  ],
  "summary": {
-  "analysed": 11,
+  "analysed": 17,
   "failed": 1,
   "inbox_total": 28,
-  "outputs_done": 6,
+  "outputs_done": 7,
   "pools": {
    "beauty": {
     "clips": 24,
@@ -298,17 +369,23 @@
    },
    "fruit-food": {
     "clips": 38,
-    "clips_used": 18,
+    "clips_used": 29,
     "seconds": 360.9,
-    "seconds_free": 139.1
+    "seconds_free": 61.2
    },
    "tools-home": {
-    "clips": 155,
+    "clips": 247,
     "clips_used": 18,
-    "seconds": 1381.3,
-    "seconds_free": 1145.9
+    "seconds": 2093.9,
+    "seconds_free": 1858.5
+   },
+   "woodworking": {
+    "clips": 42,
+    "clips_used": 0,
+    "seconds": 364.2,
+    "seconds_free": 364.2
    }
   }
  },
- "updated_at": "2026-11-19 13:58 PKT"
+ "updated_at": "2026-11-19 17:15 PKT"
 }

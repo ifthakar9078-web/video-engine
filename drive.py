@@ -400,11 +400,14 @@ def analyse(src, mime="video/mp4"):
     raise RuntimeError(f"analysis failed: {last}")
 
 
-SCRIPT_PROMPT = """You write viral hack-compilation narration. Follow this reference blueprint EXACTLY (taken from a top-performing painting-hacks compilation):
-- HOOK first, a curiosity gap that makes the viewer feel a secret was kept from them. Reference hook: "Why did nobody tell me these painting tricks sooner?" Write the same form for THIS niche.
-- Then one line per trick. Each line: open with a pain-point question or curiosity line, give the step, end with the payoff/benefit. Reference lines: "Hate cleaning paint trays?" / "Still bending over and sticking down floor protection little by little?" / "It works even better than using tape."
-- Fast, energetic, authoritative. Narration must fill the clip: words ~= slot_seconds x 2.5. Zero filler, zero dead air.
-- Keep an OPEN LOOP: somewhere in the middle lines, tease that the best/last trick is still coming, so viewers hold to the final second.
+SCRIPT_PROMPT = """You are a top TikTok creator writing narration for a hack compilation. You write exactly the way a real person talks on camera — never like an AI, never like an ad. Follow this blueprint (taken from a top-performing painting-hacks compilation):
+- HOOK first: a curiosity gap that makes the viewer feel a secret was kept from them. Reference: "Why did nobody tell me these painting tricks sooner?" Write the same form for THIS niche.
+- One line per trick. Each line: open with the pain point or a curiosity jab, give the step, end with the payoff/benefit. Reference lines: "Hate cleaning paint trays?" / "Still bending over and sticking down floor protection little by little?" / "It works even better than using tape."
+- SOUND HUMAN, NOT GENERATED: contractions everywhere (you're, don't, here's), short punchy sentences mixed with longer ones, natural spoken rhythm, and concrete details taken from what THIS clip actually shows — name the object, the motion, the result. Talk to the viewer directly ("watch this", "look at that edge").
+- NEVER use AI-sounding filler or stock phrases: no "in this video", no "let's dive in", no "game-changer", no "revolutionary", no "amazing trick you won't believe", no "say goodbye to", no "introducing", no exclamation spam, and never repeat the same sentence pattern twice in a row.
+- Every line must earn its seconds: a fresh detail, a sharper benefit, or a stronger tease in every sentence. If a line could fit ANY video, rewrite it until it only fits THIS clip.
+- Keep an OPEN LOOP: in the middle lines, tease that the best trick is still coming, so viewers hold to the final second.
+- Narration must fill the clip: words ~= slot_seconds x 2.5. Zero filler, zero dead air.
 - Do NOT number the lines (numbering is added by the renderer). No repeated openings.
 - CTA at the end, save-form: "Save these tricks for later, and follow for more." (adapt the wording to the niche).
 Return ONLY JSON: {"hook_line": "...", "lines": ["...", ...], "cta": "..."} with exactly one line per clip, in the order given.
@@ -603,10 +606,11 @@ def cutter(board_sources):
                "stage": "analysing", "duration": res.get("duration", 0),
                "thumb": f.get("thumbnailLink", ""), "note": ""}
         if not res["ok"]:
-            rec["stage"] = "failed"
-            rec["note"] = res["error"]
+            rec["stage"] = _fail_stage(res["error"])
+            rec["note"] = ("Gemini busy — automatic retry next cycle. " + res["error"])[:200] \
+                if rec["stage"] == "queued" else res["error"]
             post_source(rec)
-            log(f"cutter: FAILED {name}: {res['error']}")
+            log(f"cutter: {'REQUEUED' if rec['stage'] == 'queued' else 'FAILED'} {name}: {res['error']}")
             continue
         try:
             category = res["category"]
@@ -645,10 +649,11 @@ def cutter(board_sources):
             log(f"cutter: pooled {name} -> {category}: {len(new_clips)} clips, {total:.0f}s")
             processed += 1
         except Exception as e:
-            rec["stage"] = "failed"
-            rec["note"] = str(e)[:200]
+            rec["stage"] = _fail_stage(str(e))
+            rec["note"] = ("Gemini busy — automatic retry next cycle. " + str(e))[:200] \
+                if rec["stage"] == "queued" else str(e)[:200]
             post_source(rec)
-            log(f"cutter: FAILED {name}: {e}")
+            log(f"cutter: {'REQUEUED' if rec['stage'] == 'queued' else 'FAILED'} {name}: {e}")
     return processed
 
 

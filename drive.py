@@ -6,7 +6,7 @@ Runs on a GitHub Actions runner (see .github/workflows/drive.yml). Drive is
 reached keylessly: the workflow exchanges its GitHub identity for a Google
 access token (Workload Identity Federation) and exports it as DRIVE_TOKEN.
 
-Stages (env MODE = cutter | merger | both, MAX_SOURCES = int, default 2):
+Stages (env MODE = cutter | merger | both, MAX_SOURCES = int, default 4):
   CUTTER — take new videos from the Drive "Video Inbox" one by one, Gemini
            analyses each (ONE category + scene segments), cut the scenes and
            save them into that category's pool folder inside "Video Pools"
@@ -36,9 +36,9 @@ MODE = (os.environ.get("MODE") or "both").strip().lower()
 if MODE not in ("cutter", "merger", "both"):
     MODE = "both"
 try:
-    MAX_SOURCES = max(0, int(os.environ.get("MAX_SOURCES") or 2))
+    MAX_SOURCES = max(0, int(os.environ.get("MAX_SOURCES") or 4))
 except ValueError:
-    MAX_SOURCES = 2
+    MAX_SOURCES = 4
 REPO = "ifthakar9078-web/video-engine"
 API = "https://generativelanguage.googleapis.com/v1beta"
 DRIVE = "https://www.googleapis.com/drive/v3"
@@ -130,6 +130,7 @@ def post_drive_pools():
     numbers always match what is really in Google Drive."""
     try:
         pools = []
+        per_source = {}
         for f in drive_list(POOLS_ID):
             if f.get("mimeType") != FOLDER_MIME:
                 continue
@@ -143,8 +144,29 @@ def post_drive_pools():
                 "seconds_free": round(sum(float(c.get("dur", 0)) for c in clips
                                         if not c.get("used")), 1),
             })
+            for c in clips:
+                sid = c.get("source_id")
+                if not sid:
+                    continue
+                st = per_source.setdefault(sid, {"clips": 0, "clips_used": 0})
+                st["clips"] += 1
+                if c.get("used"):
+                    st["clips_used"] += 1
         qapi("POST", "/drive-pools", {"pools": pools})
         log(f"drive pools reported: {[(p['category'], p['clips']) for p in pools]}")
+        # Keep each pooled source's clip stats fresh on the board, so its
+        # card shows formed / merged / remaining accurately.
+        try:
+            current = {s.get("id"): s for s in (get_board().get("sources") or [])}
+            for sid, st in per_source.items():
+                rec = current.get(f"drive-{sid}")
+                if rec and rec.get("stage") == "pooled" and (
+                        rec.get("clips") != st["clips"]
+                        or rec.get("clips_used") != st["clips_used"]):
+                    post_source({**rec, "clips": st["clips"],
+                                 "clips_used": st["clips_used"]})
+        except Exception as e:
+            log(f"source clip-stat refresh failed (ignored): {e}")
     except Exception as e:
         log(f"drive pools report failed (ignored): {e}")
 
@@ -501,9 +523,43 @@ def verify_final(p):
 
 
 # ---------------- CUTTER ----------------
+def _analyse_one(f):
+    """Phase-1 worker for one source: download, Gemini analysis, local
+    lossless cuts. No board posts and no Drive writes — safe in parallel."""
+    fid, name = f["id"], f.get("name", "")
+    src = WORK / f"src-{fid[:8]}.mp4"
+    try:
+        log(f"cutter: downloading {name}")
+        drive_download(fid, src)
+        dur = ffprobe_dur(src)
+        mime = f.get("mimeType") or "video/mp4"
+        log(f"cutter: analysing {name} ({dur:.0f}s)")
+        info = analyse(src, mime)
+        clips = []
+        for i, seg in enumerate(info["segments"]):
+            cname = f"{fid[:8]}-{i + 1}.mp4"
+            cpath = WORK / cname
+            cut_lossless(src, seg["start"], seg["end"], cpath)
+            cdur = ffprobe_dur(cpath)
+            if cdur < 2.5:
+                log(f"cutter: clip {cname} too short after cut ({cdur:.1f}s) — skipped")
+                cpath.unlink(missing_ok=True)
+                continue
+            clips.append({"name": cname, "path": cpath, "dur": round(cdur, 2),
+                          "desc": seg["desc"], "reveal": seg["reveal"]})
+        src.unlink(missing_ok=True)
+        return {"f": f, "ok": True, "duration": round(dur, 1),
+                "category": info["category"],
+                "has_captions": info["has_captions"],
+                "segments": len(info["segments"]), "clips": clips}
+    except Exception as e:
+        src.unlink(missing_ok=True)
+        return {"f": f, "ok": False, "error": str(e)[:200]}
+
+
 def cutter(board_sources):
     done_ids = {s.get("id") for s in board_sources
-                if s.get("stage") in ("pooled", "failed", "file-error")}
+                if s.get("stage") in ("pooled", "failed", "file-error", "duplicate")}
     all_videos = [f for f in drive_list(INBOX_ID)
                   if str(f.get("mimeType", "")).startswith("video/")]
     # Empty uploads (0 bytes) can never be processed — flag each once on the
@@ -520,26 +576,36 @@ def cutter(board_sources):
     inbox.sort(key=lambda f: f.get("createdTime", ""))
     todo = [f for f in inbox if f"drive-{f['id']}" not in done_ids][:MAX_SOURCES]
     log(f"cutter: {len(inbox)} inbox video(s), {len(todo)} to process (max {MAX_SOURCES})")
-    processed = 0
     for f in todo:
+        post_source({"id": f"drive-{f['id']}", "name": f.get("name", ""),
+                     "category": "", "stage": "analysing", "duration": 0,
+                     "thumb": f.get("thumbnailLink", ""), "note": ""})
+    # Phase 1 (parallel): analysis is the slow step (minutes per video,
+    # mostly waiting on Gemini), so run up to 3 sources at once. Workers
+    # touch only their own files — no board or Drive writes here.
+    from concurrent.futures import ThreadPoolExecutor
+    with ThreadPoolExecutor(max_workers=3) as ex:
+        results = list(ex.map(_analyse_one, todo))
+    # Phase 2 (sequential): Drive uploads, pool manifests, board records —
+    # single-threaded so manifests and the board list never race.
+    processed = 0
+    for res in results:
+        f = res["f"]
         fid, name = f["id"], f.get("name", "")
         rec = {"id": f"drive-{fid}", "name": name, "category": "",
-               "stage": "analysing", "duration": 0,
+               "stage": "analysing", "duration": res.get("duration", 0),
                "thumb": f.get("thumbnailLink", ""), "note": ""}
-        post_source(rec)
+        if not res["ok"]:
+            rec["stage"] = "failed"
+            rec["note"] = res["error"]
+            post_source(rec)
+            log(f"cutter: FAILED {name}: {res['error']}")
+            continue
         try:
-            src = WORK / f"src-{fid[:8]}.mp4"
-            log(f"cutter: downloading {name}")
-            drive_download(fid, src)
-            dur = ffprobe_dur(src)
-            rec["duration"] = round(dur, 1)
-            mime = f.get("mimeType") or "video/mp4"
-            log(f"cutter: analysing {name} ({dur:.0f}s)")
-            info = analyse(src, mime)
-            category = info["category"]
+            category = res["category"]
             rec["category"] = category
             rec["stage"] = "cutting"
-            rec["note"] = f"{len(info['segments'])} scene(s) found"
+            rec["note"] = f"{res['segments']} scene(s) found"
             post_source(rec)
             cat = drive_find(POOLS_ID, category, FOLDER_MIME)
             if not cat:
@@ -548,33 +614,28 @@ def cutter(board_sources):
             manifest, pool_file_id = load_pool_manifest(cat["id"])
             known = {c.get("name") for c in manifest["clips"]}
             new_clips = []
-            for i, seg in enumerate(info["segments"]):
-                cname = f"{fid[:8]}-{i + 1}.mp4"
-                if cname in known:
+            for cl in res["clips"]:
+                if cl["name"] in known:
+                    cl["path"].unlink(missing_ok=True)
                     continue
-                cpath = WORK / cname
-                cut_lossless(src, seg["start"], seg["end"], cpath)
-                cdur = ffprobe_dur(cpath)
-                if cdur < 2.5:
-                    log(f"cutter: clip {cname} too short after cut ({cdur:.1f}s) — skipped")
-                    cpath.unlink(missing_ok=True)
-                    continue
-                log(f"cutter: uploading clip {cname} ({cdur:.1f}s) to pool {category}")
-                up = drive_upload(cname, cat["id"], cpath, "video/mp4")
-                new_clips.append({"drive_id": up["id"], "name": cname,
-                                  "dur": round(cdur, 2), "used": False,
-                                  "desc": seg["desc"], "reveal": seg["reveal"],
-                                  "has_captions": info["has_captions"],
+                log(f"cutter: uploading clip {cl['name']} ({cl['dur']:.1f}s) to pool {category}")
+                up = drive_upload(cl["name"], cat["id"], cl["path"], "video/mp4")
+                new_clips.append({"drive_id": up["id"], "name": cl["name"],
+                                  "dur": cl["dur"], "used": False,
+                                  "desc": cl["desc"], "reveal": cl["reveal"],
+                                  "has_captions": res["has_captions"],
                                   "source_id": fid, "source_name": name})
-                cpath.unlink(missing_ok=True)
+                cl["path"].unlink(missing_ok=True)
             manifest["clips"].extend(new_clips)
             save_pool_manifest(cat["id"], pool_file_id, manifest)
+            mine = [c for c in manifest["clips"] if c.get("source_id") == fid]
             total = sum(c["dur"] for c in new_clips)
             rec["stage"] = "pooled"
             rec["note"] = f"{len(new_clips)} clips, {total:.0f}s pooled"
+            rec["clips"] = len(mine)
+            rec["clips_used"] = sum(1 for c in mine if c.get("used"))
             post_source(rec)
             log(f"cutter: pooled {name} -> {category}: {len(new_clips)} clips, {total:.0f}s")
-            src.unlink(missing_ok=True)
             processed += 1
         except Exception as e:
             rec["stage"] = "failed"

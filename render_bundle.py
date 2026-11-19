@@ -33,7 +33,7 @@ import subprocess
 import sys
 
 MAX_TEMPO = 1.20          # hard cap for voice fit-tempo (template rule)
-WHOOSH_VOL = 0.35
+WHOOSH_VOL = 0.15
 FONT_CANDIDATES = [
     "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
     "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
@@ -66,9 +66,9 @@ def make_whoosh(path):
     """Synthesize a ~0.5s whoosh: white-noise swell through band shaping
     with fast fade-in / fade-out (no asset file needed)."""
     run(["ffmpeg", "-y", "-v", "error",
-         "-f", "lavfi", "-i", "anoisesrc=color=white:duration=0.5:sample_rate=44100",
+         "-f", "lavfi", "-i", "anoisesrc=color=white:duration=0.28:sample_rate=44100",
          "-af", "highpass=f=500,lowpass=f=3200,"
-                "afade=t=in:st=0:d=0.18,afade=t=out:st=0.22:d=0.28,volume=0.9",
+                "afade=t=in:st=0:d=0.08,afade=t=out:st=0.10:d=0.18,volume=0.6",
          "-codec:a", "pcm_s16le", path], "whoosh synthesis")
 
 

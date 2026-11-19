@@ -523,6 +523,13 @@ def verify_final(p):
 
 
 # ---------------- CUTTER ----------------
+def _fail_stage(err):
+    """Transient Gemini overload (HTTP 503) is not a real failure: requeue
+    the source so the next cycle retries it automatically. Anything else
+    stays failed for the board's Retry button."""
+    return "queued" if ("503" in err or "Service Unavailable" in err) else "failed"
+
+
 def _analyse_one(f):
     """Phase-1 worker for one source: download, Gemini analysis, local
     lossless cuts. No board posts and no Drive writes — safe in parallel."""

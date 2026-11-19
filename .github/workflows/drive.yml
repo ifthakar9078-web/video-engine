@@ -34,12 +34,11 @@ on:
         required: false
         default: "2"
         type: string
-  # SCHEDULE PAUSED 2026-11-19: service accounts have no Drive storage quota,
-  # so every scheduled run would burn Gemini analysis on 2 more sources and
-  # mark them failed at the clip-upload step. Re-enable once Drive writes run
-  # under a user OAuth token (see drive.py header / run 44526608157 log).
-  # schedule:
-  #   - cron: "15,45 * * * *"
+  # Live schedule: Drive writes run under the owner's OAuth token
+  # (ifthakar9078@gmail.com owns the folders; service accounts have no Drive
+  # storage quota). Cutter test passed 2026-11-19 (run 44546106989).
+  schedule:
+    - cron: "15,45 * * * *"
 
 permissions:
   contents: write

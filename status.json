@@ -1,0 +1,38 @@
+{
+ "cloud_runs": [
+  {
+   "conclusion": "success",
+   "created_at": "2026-11-19T03:55:17Z",
+   "id": 44454741987,
+   "status": "completed",
+   "updated_at": "2026-11-19T03:56:09Z"
+  }
+ ],
+ "failures": [],
+ "outputs": [],
+ "sources": [
+  {
+   "category": "tools-home",
+   "clips": 15,
+   "clips_used": 0,
+   "name": "63K views  142 reactions  How to Remove Splinters Easily Get.mp4",
+   "seconds": 189.3,
+   "status": "analysed"
+  }
+ ],
+ "summary": {
+  "analysed": 1,
+  "failed": 0,
+  "inbox_total": 28,
+  "outputs_done": 0,
+  "pools": {
+   "tools-home": {
+    "clips": 15,
+    "clips_used": 0,
+    "seconds": 189.3,
+    "seconds_free": 189.3
+   }
+  }
+ },
+ "updated_at": "2026-11-19 09:01 PKT"
+}

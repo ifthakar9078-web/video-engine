@@ -226,6 +226,9 @@ jobs:
                           {"fileData": {"fileUri": f["uri"], "mimeType": "video/mp4"}},
                           {"text": ANALYSIS_PROMPT}])
                       data = json.loads(txt)
+                      if isinstance(data, list):
+                          wrapped = next((d for d in data if isinstance(d, dict) and "segments" in d), None)
+                          data = wrapped if wrapped is not None else {"category": "other", "has_captions": False, "segments": data}
                       segs, last_end = [], 0.0
                       for s in data.get("segments", []):
                           a = max(0.0, float(s["start"])); b = min(float(s["end"]), dur, a + 25.0)
@@ -259,6 +262,8 @@ jobs:
                   try:
                       txt = gemini_generate(model, [{"text": SCRIPT_PROMPT + listing}])
                       data = json.loads(txt)
+                      if isinstance(data, list):
+                          data = next((d for d in data if isinstance(d, dict) and "lines" in d), {})
                       if len(data.get("lines", [])) != len(clips): raise RuntimeError("line count mismatch")
                       return data
                   except Exception as e:

@@ -32,7 +32,7 @@ on:
       max_sources:
         description: "Max new Inbox sources for the cutter"
         required: false
-        default: "2"
+        default: "4"
         type: string
   # Live schedule: Drive writes run under the owner's OAuth token
   # (ifthakar9078@gmail.com owns the folders; service accounts have no Drive
@@ -88,8 +88,8 @@ jobs:
           TOKEN = os.environ.get("DRIVE_TOKEN", "")
           MODE = (os.environ.get("MODE") or "both").strip().lower()
           if MODE not in ("cutter", "merger", "both"): MODE = "both"
-          try: MAX_SOURCES = int(os.environ.get("MAX_SOURCES") or 2)
-          except ValueError: MAX_SOURCES = 2
+          try: MAX_SOURCES = int(os.environ.get("MAX_SOURCES") or 4)
+          except ValueError: MAX_SOURCES = 4
           DRIVE = "https://www.googleapis.com/drive/v3"
           def get(url, token=False):
               h = {"User-Agent": UA}
@@ -116,7 +116,7 @@ jobs:
                   pools_id = settings.get("pools_folder_id") or "1Cx-EG5V7_1pe_CDYO-9rsRQYS59GSxzD"
                   if MODE in ("cutter", "both") and MAX_SOURCES > 0:
                       done = {s.get("id") for s in (board.get("sources") or [])
-                              if s.get("stage") in ("pooled", "failed")}
+                              if s.get("stage") in ("pooled", "failed", "file-error", "duplicate")}
                       raw = dlist(inbox_id)
                       print(f"cutter: inbox listing returned {len(raw)} file(s), done set has {len(done)}")
                       if raw: print("cutter: first file:", {k: raw[0].get(k) for k in ("id", "name", "mimeType", "size")})

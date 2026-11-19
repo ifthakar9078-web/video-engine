@@ -124,6 +124,31 @@ def post_source(record):
         log(f"source report failed (ignored): {e}")
 
 
+def post_drive_pools():
+    """Publish the tool's Drive pool state to the board, read from the actual
+    _pool.json manifests in the Video Pools folder — so the board's pool
+    numbers always match what is really in Google Drive."""
+    try:
+        pools = []
+        for f in drive_list(POOLS_ID):
+            if f.get("mimeType") != FOLDER_MIME:
+                continue
+            manifest, _fid = load_pool_manifest(f["id"])
+            clips = manifest.get("clips", [])
+            pools.append({
+                "category": f["name"],
+                "clips": len(clips),
+                "clips_used": sum(1 for c in clips if c.get("used")),
+                "seconds": round(sum(float(c.get("dur", 0)) for c in clips), 1),
+                "seconds_free": round(sum(float(c.get("dur", 0)) for c in clips
+                                        if not c.get("used")), 1),
+            })
+        qapi("POST", "/drive-pools", {"pools": pools})
+        log(f"drive pools reported: {[(p['category'], p['clips']) for p in pools]}")
+    except Exception as e:
+        log(f"drive pools report failed (ignored): {e}")
+
+
 def set_job_stage(jid, stage, note="", error=None, output=None):
     log(f"job {jid}: {stage} {note}")
     body = {"stage": stage, "note": note}
@@ -478,10 +503,20 @@ def verify_final(p):
 # ---------------- CUTTER ----------------
 def cutter(board_sources):
     done_ids = {s.get("id") for s in board_sources
-                if s.get("stage") in ("pooled", "failed")}
-    inbox = [f for f in drive_list(INBOX_ID)
-             if str(f.get("mimeType", "")).startswith("video/")
-             and int(f.get("size") or 0) > 0]
+                if s.get("stage") in ("pooled", "failed", "file-error")}
+    all_videos = [f for f in drive_list(INBOX_ID)
+                  if str(f.get("mimeType", "")).startswith("video/")]
+    # Empty uploads (0 bytes) can never be processed — flag each once on the
+    # board as a file error and ignore it from then on.
+    known_ids = {s.get("id") for s in board_sources}
+    for f in all_videos:
+        if int(f.get("size") or 0) <= 0 and f"drive-{f['id']}" not in known_ids:
+            post_source({"id": f"drive-{f['id']}", "name": f.get("name", ""),
+                         "category": "", "stage": "file-error", "duration": 0,
+                         "thumb": f.get("thumbnailLink", ""),
+                         "note": "Empty file (0 bytes) — the upload never "
+                                 "completed. Ignored."})
+    inbox = [f for f in all_videos if int(f.get("size") or 0) > 0]
     inbox.sort(key=lambda f: f.get("createdTime", ""))
     todo = [f for f in inbox if f"drive-{f['id']}" not in done_ids][:MAX_SOURCES]
     log(f"cutter: {len(inbox)} inbox video(s), {len(todo)} to process (max {MAX_SOURCES})")
@@ -714,7 +749,7 @@ def main():
     global VOICE, VOICES, VOICE_COUNTER, INBOX_ID, FINISHED_ID, POOLS_ID
     log(f"drive.py starting: mode={MODE} max_sources={MAX_SOURCES}")
     if not DRIVE_TOKEN:
-        log("ERROR: DRIVE_TOKEN is empty — the WIF auth step must run first. Nothing can run.")
+        log("ERROR: DRIVE_TOKEN is empty — the OAuth token step must run first. Nothing can run.")
         return 1
     if not QUEUE_KEY:
         log("ERROR: QUEUE_KEY secret is not set — cannot read/write board state. Nothing can run.")
@@ -751,6 +786,7 @@ def main():
     if MODE in ("merger", "both"):
         n = merger()
         did.append(f"built {n} compilation(s)")
+    post_drive_pools()
     engine_status("idle", "Drive cycle finished: " + ", ".join(did) + ".")
     return 0
 

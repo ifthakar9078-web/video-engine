@@ -136,6 +136,11 @@ def post_drive_pools():
                 continue
             manifest, _fid = load_pool_manifest(f["id"])
             clips = manifest.get("clips", [])
+            if not clips:
+                # Skip empty staging folders (e.g. the leftover "other"
+                # folder, which is empty and cannot be deleted — its owner
+                # is the old service account). Only real pools are shown.
+                continue
             pools.append({
                 "category": f["name"],
                 "clips": len(clips),

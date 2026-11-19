@@ -1,0 +1,59 @@
+# Voice samples — synthesises the same narration line in several Kokoro
+# voices on a runner so the user can listen and pick the tool's voice.
+# Placement: .github/workflows/voices.yml in ifthakar9078-web/video-engine
+name: voices
+
+on:
+  workflow_dispatch:
+
+jobs:
+  voices:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install system tools (espeak-ng)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y espeak-ng
+
+      - name: Install Kokoro
+        run: pip install kokoro numpy
+
+      - name: Make samples
+        run: |
+          cat > make_voices.py <<'PYEOF'
+          import wave
+          import numpy as np
+          from kokoro import KPipeline
+          TEXT = ("Why did nobody tell me these tricks sooner? "
+                  "Number one - hate peeling garlic? Give it one firm smash, "
+                  "and the skin slides right off. "
+                  "Save these tricks for later, and follow for more.")
+          VOICES = ["am_michael", "am_adam", "am_eric", "am_liam", "am_onyx", "af_heart"]
+          pipe = KPipeline(lang_code='a')
+          for v in VOICES:
+              try:
+                  chunks = [a for _, _, a in pipe(TEXT, voice=v, speed=1.1)]
+                  pcm = np.concatenate(chunks)
+                  data = (np.clip(pcm, -1, 1) * 32767).astype(np.int16)
+                  with wave.open(f"sample-{v}.wav", "wb") as w:
+                      w.setnchannels(1); w.setsampwidth(2); w.setframerate(24000)
+                      w.writeframes(data.tobytes())
+                  print(v, "ok", round(len(data) / 24000.0, 1), "s")
+              except Exception as e:
+                  print(v, "FAILED", e)
+          PYEOF
+          python3 make_voices.py
+
+      - name: Upload samples
+        uses: actions/upload-artifact@v4
+        with:
+          name: voice-samples
+          path: sample-*.wav
+          if-no-files-found: error
+          retention-days: 7

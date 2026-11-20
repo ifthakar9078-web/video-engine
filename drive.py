@@ -113,6 +113,15 @@ def engine_status(state, note):
         log(f"engine status failed (ignored): {e}")
 
 
+def post_now(text, category="", phase=0):
+    """Tell the board what this engine is doing right now (the board's
+    'Working now' line). Best-effort — never blocks production."""
+    try:
+        qapi("POST", "/now", {"text": text, "category": category, "phase": phase})
+    except Exception:
+        pass
+
+
 def post_source(record):
     """Upsert ONE source record. POST /sources replaces the whole list, so
     re-read the board and merge by id, keeping everyone else's records."""
@@ -551,6 +560,7 @@ def _analyse_one(f):
         dur = ffprobe_dur(src)
         mime = f.get("mimeType") or "video/mp4"
         log(f"cutter: analysing {name} ({dur:.0f}s)")
+        post_now(f"Cutting: {name}", "", 1)
         info = analyse(src, mime)
         clips = []
         for i, seg in enumerate(info["segments"]):
@@ -724,6 +734,7 @@ def merger():
         while f"compilation-{category}-{n}.mp4" in names:
             n += 1
         title = f"compilation-{category}-{n}"
+        post_now(f"Making a {category.replace('-', ' ')} video", category, 2)
         jid = None
         try:
             res = qapi("POST", "/jobs", {"items": [{
@@ -905,6 +916,7 @@ def main():
             n = merger()
             did.append(f"built {n} compilation(s)")
     post_drive_pools()
+    post_now("Waiting for the next run", "", 0)
     engine_status("idle", "Drive cycle finished: " + ", ".join(did) + ".")
     return 0
 

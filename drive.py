@@ -719,11 +719,7 @@ def merger():
                 fin_folder = f["id"]
                 break
         if not fin_folder:
-            d = drive_req("POST", f"{DRIVE}/files", data=json.dumps(
-                {"name": category, "mimeType": FOLDER_MIME,
-                 "parents": [FINISHED_ID]}).encode(),
-                headers={"Content-Type": "application/json"})
-            fin_folder = json.loads(d)["id"]
+            fin_folder = drive_create_folder(category, FINISHED_ID)["id"]
             log(f"merger: created Video Finished/{category} folder")
         # number the output: compilation-<category>-<n>.mp4 (count the root
         # too — older finished videos live there, numbers must never repeat)

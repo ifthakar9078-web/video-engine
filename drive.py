@@ -719,7 +719,7 @@ def merger():
                 fin_folder = f["id"]
                 break
         if not fin_folder:
-            d = drive_req("POST", "/files", data=json.dumps(
+            d = drive_req("POST", f"{DRIVE}/files", data=json.dumps(
                 {"name": category, "mimeType": FOLDER_MIME,
                  "parents": [FINISHED_ID]}).encode(),
                 headers={"Content-Type": "application/json"})

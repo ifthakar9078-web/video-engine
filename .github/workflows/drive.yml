@@ -78,7 +78,7 @@ jobs:
         id: plan
         env:
           DRIVE_TOKEN: ${{ steps.auth.outputs.access_token }}
-          MODE: ${{ inputs.mode }}
+          MODE: ${{ inputs.mode || 'cutter' }}
           MAX_SOURCES: ${{ inputs.max_sources }}
         run: |
           cat > plan.py <<'PYEOF'
@@ -178,7 +178,7 @@ jobs:
           QUEUE_KEY: ${{ secrets.QUEUE_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GH_TOKEN: ${{ github.token }}
-          MODE: ${{ inputs.mode }}
+          MODE: ${{ inputs.mode || 'cutter' }}
           MAX_SOURCES: ${{ inputs.max_sources }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |

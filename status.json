@@ -1,74 +1,74 @@
 {
  "cloud_runs": [
   {
+   "conclusion": "success",
+   "created_at": "2026-11-20T02:28:49Z",
+   "id": 44661087317,
+   "status": "completed",
+   "updated_at": "2026-11-20T02:31:55Z"
+  },
+  {
+   "conclusion": "success",
+   "created_at": "2026-11-20T02:19:47Z",
+   "id": 44659990198,
+   "status": "completed",
+   "updated_at": "2026-11-20T02:22:52Z"
+  },
+  {
+   "conclusion": "success",
+   "created_at": "2026-11-20T02:14:19Z",
+   "id": 44659336073,
+   "status": "completed",
+   "updated_at": "2026-11-20T02:16:49Z"
+  },
+  {
+   "conclusion": "cancelled",
+   "created_at": "2026-11-20T02:03:05Z",
+   "id": 44657996134,
+   "status": "completed",
+   "updated_at": "2026-11-20T02:04:50Z"
+  },
+  {
+   "conclusion": "success",
+   "created_at": "2026-11-20T02:00:27Z",
+   "id": 44657672539,
+   "status": "completed",
+   "updated_at": "2026-11-20T02:02:03Z"
+  },
+  {
    "conclusion": "failure",
-   "created_at": "2026-11-19T17:35:54Z",
-   "id": 44578894149,
+   "created_at": "2026-11-20T01:52:51Z",
+   "id": 44656790387,
    "status": "completed",
-   "updated_at": "2026-11-19T17:38:23Z"
+   "updated_at": "2026-11-20T02:06:06Z"
   },
   {
    "conclusion": "success",
-   "created_at": "2026-11-19T17:26:49Z",
-   "id": 44577258771,
+   "created_at": "2026-11-20T01:40:52Z",
+   "id": 44655371642,
    "status": "completed",
-   "updated_at": "2026-11-19T17:27:00Z"
+   "updated_at": "2026-11-20T01:41:01Z"
+  },
+  {
+   "conclusion": "failure",
+   "created_at": "2026-11-20T00:24:45Z",
+   "id": 44645648951,
+   "status": "completed",
+   "updated_at": "2026-11-20T00:41:21Z"
   },
   {
    "conclusion": "success",
-   "created_at": "2026-11-19T17:04:46Z",
-   "id": 44573218681,
+   "created_at": "2026-11-20T00:08:45Z",
+   "id": 44643448986,
    "status": "completed",
-   "updated_at": "2026-11-19T17:19:31Z"
+   "updated_at": "2026-11-20T00:08:53Z"
   },
   {
-   "conclusion": "success",
-   "created_at": "2026-11-19T16:50:25Z",
-   "id": 44570603009,
+   "conclusion": "failure",
+   "created_at": "2026-11-19T23:23:54Z",
+   "id": 44637310729,
    "status": "completed",
-   "updated_at": "2026-11-19T16:52:31Z"
-  },
-  {
-   "conclusion": "success",
-   "created_at": "2026-11-19T16:50:03Z",
-   "id": 44570532896,
-   "status": "completed",
-   "updated_at": "2026-11-19T16:53:04Z"
-  },
-  {
-   "conclusion": "success",
-   "created_at": "2026-11-19T16:41:33Z",
-   "id": 44568947934,
-   "status": "completed",
-   "updated_at": "2026-11-19T16:56:37Z"
-  },
-  {
-   "conclusion": "success",
-   "created_at": "2026-11-19T16:32:53Z",
-   "id": 44567315972,
-   "status": "completed",
-   "updated_at": "2026-11-19T16:46:03Z"
-  },
-  {
-   "conclusion": "success",
-   "created_at": "2026-11-19T16:29:08Z",
-   "id": 44566613296,
-   "status": "completed",
-   "updated_at": "2026-11-19T16:32:34Z"
-  },
-  {
-   "conclusion": "success",
-   "created_at": "2026-11-19T16:28:08Z",
-   "id": 44566428416,
-   "status": "completed",
-   "updated_at": "2026-11-19T16:28:18Z"
-  },
-  {
-   "conclusion": "success",
-   "created_at": "2026-11-19T15:40:00Z",
-   "id": 44557361394,
-   "status": "completed",
-   "updated_at": "2026-11-19T15:55:53Z"
+   "updated_at": "2026-11-19T23:26:38Z"
   }
  ],
  "failures": [
@@ -87,6 +87,14 @@
   {
    "name": "compilation-christmas-1.mp4",
    "reason": "Rebuild attempt: render run 44544270738 succeeded but output was 96.3s instead of 86.1s - the bundle dir was reused from the first build and stale clip 008.mp4 (bottle tinsel tree) plus voice 008.mp3 were left in it; the cloud renderer globs clips/*.mp4 and appended the stale clip at the end. NOT delivered. Fix: delete stale files, regenerate bundle cleanly, re-render."
+  },
+  {
+   "name": "compilation-fruit-food-6.mp4",
+   "reason": "First render (run 44583888201) failed cloud verification: dead silence 1.032s \u2014 Kokoro blocks carry ~0.5s trailing + ~0.25s leading silence, stacking past the 1.0s limit at each cut. Second render (run 44657672539) succeeded but output was 48.3s \u2014 script at 2.5 wps produced voice far shorter than the 69.1s of clips, so the renderer trimmed clips down below the 61s template minimum. NOT delivered. Fixed by trimming block silences (tmp/trim_voice.py) and expanding the script to ~3.7 wps so voice fills the slots; rebuilt below."
+  },
+  {
+   "name": "compilation-tools-home-7.mp4",
+   "reason": "Verification failed: narration/captions said 'wash basin' for clip 1cRMeA4V-04, but frames show a slotted bolt tensioner mounted on a tree trunk. Source 1cRMeA4V's Gemini labels are shifted ~1-2 scenes in the 45-85s stretch (frame-verified; descs corrected in pool-state). Render run 44659990198 (success) NOT delivered, clips left unused for rebuild."
   }
  ],
  "outputs": [
@@ -356,6 +364,47 @@
    "size_bytes": 59063117,
    "status": "delivered",
    "when": "2026-11-19T22:24:00+05:00"
+  },
+  {
+   "category": "fruit-food",
+   "clips": [
+    "1nTHiAgI-13.mp4",
+    "1nTHiAgI-06.mp4",
+    "16YGulUB-13.mp4",
+    "1nTHiAgI-04.mp4",
+    "16YGulUB-12.mp4",
+    "1X-2gBq8-11.mp4",
+    "1nTHiAgI-05.mp4",
+    "16YGulUB-01.mp4"
+   ],
+   "drive_id": "1MItRkzyUiPcQu1FkhG0dctP_FAi18p0V",
+   "drive_link": "https://drive.google.com/file/d/1MItRkzyUiPcQu1FkhG0dctP_FAi18p0V/view",
+   "duration_sec": 68.1,
+   "name": "compilation-fruit-food-6.mp4",
+   "render": "github-actions run 44659336073 (rebuild: trimmed voice silences + denser script ~3.7 wps)",
+   "size_bytes": 50759799,
+   "status": "delivered",
+   "when": "2026-11-20T07:21:58+05:00"
+  },
+  {
+   "category": "tools-home",
+   "clips": [
+    "1q5rgi0V-03.mp4",
+    "1z9ADbr7-05.mp4",
+    "1cRMeA4V-04.mp4",
+    "1nbwti8n-05.mp4",
+    "17sujnuQ-01.mp4",
+    "1apWXbmf-06.mp4",
+    "1MwCnzn4-13.mp4"
+   ],
+   "drive_id": "1lW9PzPvTwQPlgekbiSm6mLl9hqVehupU",
+   "drive_link": "https://drive.google.com/file/d/1lW9PzPvTwQPlgekbiSm6mLl9hqVehupU/view",
+   "duration_sec": 66.6,
+   "name": "compilation-tools-home-7.mp4",
+   "render": "github-actions run 44661087317 (rebuild after label-shift fix; first render 44659990198 not delivered)",
+   "size_bytes": 44932278,
+   "status": "delivered",
+   "when": "2026-11-20T07:34:04+05:00"
   }
  ],
  "sources": [
@@ -367,27 +416,27 @@
    "name": "63K views  142 reactions  How to Remove Splinters Easily Get.mp4",
    "seconds": 189.3,
    "status": "analysed",
-   "thumb": "https://lh3.googleusercontent.com/drive-storage/AJQWtBPuek5E0OTd8UUZjQL0ItRpj6tJwDANSC6AKPRfDBlBezuVUPiXlJTwrYAHC0AwTqoZRYUypzl5DaAdjG8d-xlewD3zRjhoi0ZzaHI9CPx_AzRVhQ=s220"
+   "thumb": "https://lh3.googleusercontent.com/drive-storage/AJQWtBMJwC_VuC61z3ldUg8zJE2dmuFf9reSCbOnp_wsor45BZhKX02n_q0kHIIEdjLM1GeT0YzYhGFqcHm4oD2ClgiFfyAqacro1USS3hQ-HQf4IPjK=s220"
   },
   {
    "category": "fruit-food",
    "clips": 23,
-   "clips_used": 17,
+   "clips_used": 18,
    "drive_id": "1X-2gBq8WxeKRShti3znANucdT9fRp2ve",
    "name": "18K views  57 reactions  Tasty Egg Recipes and Cooking Hacks.mp4",
    "seconds": 180.5,
    "status": "analysed",
-   "thumb": "https://lh3.googleusercontent.com/drive-storage/AJQWtBMbKqW5nh6R3aM1YtOXlH1hDDWHGU9qZF6SRZ65j5oh9ddG8mGWEfPvWWijReW7ryRoab-P2l0OihlO1_FkeNrO4UgvC8tRsAHEosR08CATwCggEg=s220"
+   "thumb": "https://lh3.googleusercontent.com/drive-storage/AJQWtBOTkdmpY-LDfHsJby23yNCnhV9-YO75MP5JItyHs5HaxNZkRx_JmfMkX6BrYuXMuorB4EE3TTttA8_GcvSp9VqH24mgF1vyDSg26DjRNo5U_6ix=s220"
   },
   {
    "category": "tools-home",
    "clips": 21,
-   "clips_used": 8,
+   "clips_used": 9,
    "drive_id": "1q5rgi0VXdkv9977n3WTlaXnsWOmq1_KG",
    "name": "17K views  84 reactions  Creative Craft Ideas and smart Life.mp4",
    "seconds": 180.2,
    "status": "analysed",
-   "thumb": "https://lh3.googleusercontent.com/drive-storage/AJQWtBOIMjhxzyrkWXwrWUjP7ZDS2ekobKIufOGxLqZzBG2RE5axxQD2kdZqF4MzK77UHcfEN_5GasjEVJ6HwdJwPHhSuOoUxwjeX066eOQ-7d46iBX3jQ=s220"
+   "thumb": "https://lh3.googleusercontent.com/drive-storage/AJQWtBOqhaiW8etwpUP5IiBY-2PQnyITMxhCX57TXk03EXJduYHuvcqglsbRyXmcmafFPIkZaO-yPgPF0pAGyDa3uv9IllZj5PWWFAjzyErXq7eTIqbl=s220"
   },
   {
    "category": "fruit-food",
@@ -397,17 +446,17 @@
    "name": "24K views  80 reactions  Beautiful Fruit Carving Ideas for W.mp4",
    "seconds": 180.4,
    "status": "analysed",
-   "thumb": "https://lh3.googleusercontent.com/drive-storage/AJQWtBM8FtizvjhlJPDlG4OPW47kxOdSGxxent6vK5H-pqavv1gpJfBaklJ4kAlPQZ9U7803eW55chaH6SDHlV2N-_tPt9TnNJXPZa63FVIF3qEWyhrRoA=s220"
+   "thumb": "https://lh3.googleusercontent.com/drive-storage/AJQWtBN5EfSKauF418Ki-bXJ7fUbvw8ZQmsgeG2R2X20Np3TVrnlnMxMdusaFhIz5dnaAm-lLKlwGlZcwaQmCG5AU88P0f2FkJxVoO-Zmg-gtWfue3qR=s220"
   },
   {
    "category": "tools-home",
    "clips": 17,
-   "clips_used": 2,
+   "clips_used": 3,
    "drive_id": "1cRMeA4VONQzXYtTXhcWQ_I9NJ7A_PTsA",
    "name": "17K views  91 reactions  Turn ordinary household problems in.mp4",
    "seconds": 163.8,
    "status": "analysed",
-   "thumb": "https://lh3.googleusercontent.com/drive-storage/AJQWtBOgsAZMo8qY3mONjyqUyGfquzZu_g89KPlhLOwZ8_02Z-Nb9zylfbp9U4DmtwXplqfMnLFkVCn-3cOY6WZltxOeCKHEq4h8rWCrIRs1VHJEIwzRhQ=s220"
+   "thumb": "https://lh3.googleusercontent.com/drive-storage/AJQWtBOjDjbG28OzJ8x7gXf_rOTu7Enz-sATVfTAiofWEnK2ktn9UyMswcXM8xDUKZ-3DilPSUtXIrMvemqfGVXPycpSZWvtjpJvcAWSMh1DEPzRayxN=s220"
   },
   {
    "category": "tools-home",
@@ -417,7 +466,7 @@
    "name": "10K views  63 reactions  The best home improvements often be.mp4",
    "seconds": 181.4,
    "status": "analysed",
-   "thumb": "https://lh3.googleusercontent.com/drive-storage/AJQWtBM7z9MNU4_4vIm61kobkvUrKIXvte7oDnS237yVbis6Ionx-_zMvz8WOlskUATVVql1SwRjYr29V168SY3ZWe3HJ_zsG-q450Go7L1F11cuMMCmgA=s220"
+   "thumb": "https://lh3.googleusercontent.com/drive-storage/AJQWtBOD-haFq7p-7L__Ni3lN361VLeinJtzpahAOysWr37ikDMxexCB_49GSx9Sj2WC8C33jGVSPAAFujJT8rILGwl1RtmBWYPn1ZQJ5pC0VirtEUj0=s220"
   },
   {
    "category": "tools-home",
@@ -427,7 +476,7 @@
    "name": "13K views  50 reactions  The best home improvements often be.mp4",
    "seconds": 241.0,
    "status": "analysed",
-   "thumb": "https://lh3.googleusercontent.com/drive-storage/AJQWtBPYCljsCWHbJG7lUohvuJGWQob33IRakBEP-yImWJwb2hCz3ocs-tWehJKBqGeo96RzfGw8tCkPKBWp4HFbIVUCF3fJY7SlAyY5a9nKLmN8dnim8g=s220"
+   "thumb": "https://lh3.googleusercontent.com/drive-storage/AJQWtBNf_693zmT2FxeYriiJNe668YqCw4vK57ae0L_qfmGqoM1B3ClG0Mjzt1VCrUihW7U0SIkqGCkhgqy6gjwjxJCN8DO-uB5s6O2CepMKY5LO-tSO=s220"
   },
   {
    "category": "beauty",
@@ -437,27 +486,27 @@
    "name": "14K views  108 reactions  Beauty and Personal Care Hacks You .mp4",
    "seconds": 180.2,
    "status": "analysed",
-   "thumb": "https://lh3.googleusercontent.com/drive-storage/AJQWtBN9LcgqbIvnlOm9SvQqpzUVkaUY4hn6pjLWp5MxRNmWZMJ90pRO2n9IP_Bpj7kZj43Cl4_AUvgghOGJZnWKE3uFRw_aUK7Cpcupt1UiLBG5KKtS2w=s220"
+   "thumb": "https://lh3.googleusercontent.com/drive-storage/AJQWtBMTF7RymZTaPr3D_oKb6JeRdiWleXKVqyhKdn1jFDXoTCUWhCJBY65J5lbjccon1DJ8UPuqQ-22Rgz3meU-ituvKmaiuPOajJmB7gSCN-jTZpc=s220"
   },
   {
    "category": "tools-home",
    "clips": 25,
-   "clips_used": 0,
+   "clips_used": 1,
    "drive_id": "1nbwti8n4tQm55TC-juKRIn9QCL2rKnIb",
    "name": "17K views  38 reactions  The best solutions arent always com.mp4",
    "seconds": 240.2,
    "status": "analysed",
-   "thumb": "https://lh3.googleusercontent.com/drive-storage/AJQWtBM8t8KCLvsA8XCDlD-tzxn1Hw52EKD_qSwXqXX6Qe0sxMNw60LoZpwRqefjj4-xY7etuGpZnkiNYJH3OazDdQI-PfWyqu1bDxpPV9vJZaVS8H8x_g=s220"
+   "thumb": "https://lh3.googleusercontent.com/drive-storage/AJQWtBNcZKWk9_sv4Vryg9uBGflcjXLtiQKm9IZRE34WEXaLpgDJQVdhuvLeSa-WfoJPDCK3QCApOWdhjsS-FuL-QydI6nWicIsfOajkuMJXIMqArqc=s220"
   },
   {
    "category": "tools-home",
    "clips": 27,
-   "clips_used": 3,
+   "clips_used": 4,
    "drive_id": "1MwCnzn4-IhhtfH2dTmTqCRgJoWPCdl9u",
    "name": "10K views  50 reactions  A little creativity can go a long w.mp4",
    "seconds": 185.4,
    "status": "analysed",
-   "thumb": "https://lh3.googleusercontent.com/drive-storage/AJQWtBME3qI9sDQj6FD-oEpUE8vonfPdvj4tN3QpiV__f-n8TyZ2wedAFDN5HaFqXja4kv8YNq2TI_lLzohSpasO6rWKq0DEnyjRUWQLxbde80XShsJ5yw=s220"
+   "thumb": "https://lh3.googleusercontent.com/drive-storage/AJQWtBNVrWcxw3ea-s2jow-hw8Ij1WjwCXlCMF6ZvFP9cb0aPSfighemktj9qjd2M0nvC2XVDz5gtss4vDFvIxUXRGLS1k2LgQlfxE6pCG6qjkna3Fc=s220"
   },
   {
    "category": "christmas",
@@ -467,17 +516,17 @@
    "name": "14K views  108 reactions  Christmas Decor Ideas and Clever H.mp4",
    "seconds": 530.3,
    "status": "analysed",
-   "thumb": "https://lh3.googleusercontent.com/drive-storage/AJQWtBOLtumZEUFTJDkZSoIwkC02hTdZrXqne98Rfw2xMhAKJDzSe6OKAAGy27MDCfXMkHM4OOnmFGQYmc701o8t9MSRg0NOLLXubJ2vRnrmgJB2ab3kWw=s220"
+   "thumb": "https://lh3.googleusercontent.com/drive-storage/AJQWtBOoK5ihG2UmT8xRN-l2xtnJdGPkbtkyxSvuHfRCyHQCQ3qKveIjpOF6rJvQS68TaKyjrUNgmUZZ4FBvi-44akxA5S-1h8_dICrq-BS0XSE-PF61=s220"
   },
   {
    "category": "tools-home",
    "clips": 24,
-   "clips_used": 0,
+   "clips_used": 1,
    "drive_id": "17sujnuQ6xUjObkF-TZcs1fpMr4BvxA2n",
    "name": "304K views  23K reactions  Crafting Experiments That Turn Un.mp4",
    "seconds": 181.7,
    "status": "analysed",
-   "thumb": "https://lh3.googleusercontent.com/drive-storage/AJQWtBMybQwzINDYSqeiu7yZT54N-qpV1NPSbbH0XZ0YyiEE2-QD1OeoYSD7nJhrVYEAlty8tchlgk4Brc9tOYCA5WmGjEF-x2Xzw7WukPRpmqDyGq7u-w=s220"
+   "thumb": "https://lh3.googleusercontent.com/drive-storage/AJQWtBPOgku3Z28HQQBq1mFJittzYN5Tk2S5yMaV8w773ioSJu59HEZBCkvTeR1j56Ws1MKCZZy_J-9adBpCXEXK6tmaXpFJMGIGDchUYQxlPPx8RBs=s220"
   },
   {
    "category": "tools-home",
@@ -487,7 +536,7 @@
    "name": "18K views  155 reactions  Turn simple materials into useful .mp4",
    "seconds": 188.6,
    "status": "analysed",
-   "thumb": "https://lh3.googleusercontent.com/drive-storage/AJQWtBNoeqdQsX_ub7axJJemTxlVuYdpDPXd8_EhlPIxNYOE4nFd2qPEkptI4o6tTs5CUgxYCxc3t1TrILmMruOF8TEyKE0gy6qggxV1tv8pyELVB4WraQ=s220"
+   "thumb": "https://lh3.googleusercontent.com/drive-storage/AJQWtBMdYYBp6HOn_ROrMzVChVqS137LTgSe5HrASRGIrBk0yLuYVPZtDjlZqdzXyyJcEKzz9CkKuXc2urxvNXDz2fxvup2kRY_WwgISkv9YqKyq3dY=s220"
   },
   {
    "category": "tools-home",
@@ -497,7 +546,7 @@
    "name": "22K views  56 reactions  You dont always need expensive equi.mp4",
    "seconds": 181.0,
    "status": "analysed",
-   "thumb": "https://lh3.googleusercontent.com/drive-storage/AJQWtBNQUvc4fb9XExG8uLf1dRvXNuOjlVyuMZW_HpPw6RM-9IDuVA_OYZJq3g1T7PH8-9JjCj8AlLux-obcAHu6EOPH6FlFymOX9yDj27ZPSSEKcHqRtA=s220"
+   "thumb": "https://lh3.googleusercontent.com/drive-storage/AJQWtBOllUIaTokZfH-2c6uBD9sq_JRqs53ncF2OkyR_Zt6IcOhvmoEI0lSXoryiwou3UczVOewCDwicrcchBQx15H0Y6gsmBQOMblCamUIyRISWdio=s220"
   },
   {
    "category": "tools-home",
@@ -507,7 +556,7 @@
    "name": "84K views  16 reactions  Essential Hose and Pipe Tricks for .mp4",
    "seconds": 161.3,
    "status": "analysed",
-   "thumb": "https://lh3.googleusercontent.com/drive-storage/AJQWtBOe3mSvNARVQqUv5jCe43lx4VblCs6zBDXUyMza4G_DRC5Dd-CDVgUK6fx277gdN7PEsbUy3gcozU0ZPEByWawel42Pz343X5cCBRvdi_eJInMvJA=s220"
+   "thumb": "https://lh3.googleusercontent.com/drive-storage/AJQWtBMRiKOXaKn-Ctm0c9H3S9gWdXyNX_ZE7LSemm86LyT8MwCHytmxHJvk82UaEUJpm_Q_KcCfS9VDZ23f_Gu-effpO7UW6-11FU8xtvGHojuFbwo=s220"
   },
   {
    "category": "woodworking",
@@ -517,7 +566,7 @@
    "name": "59K views  23 reactions  Creative Woodworking Projects Geniu.mp4",
    "seconds": 181.6,
    "status": "analysed",
-   "thumb": "https://lh3.googleusercontent.com/drive-storage/AJQWtBO1QlXbwehXdfFKEJr7xnc9W97n97NoFmBjERo2KHIOT18jc55A8evfcPcXxl9gyLDh7oQrv_W4vFYJY60Z1tgdhoma424yez9cDNvd7vS4MNpkpQ=s220"
+   "thumb": "https://lh3.googleusercontent.com/drive-storage/AJQWtBMqa__mPLOAiZ2YuQ37_YsUKKpmoIRWDeLEswqyi3uVJEUsv1WDlVG_9EqnTeoOXjBElLpwMZRdPhbKtwD0d2ft0mPPDF5l7bR1lTSCcdADYEA=s220"
   },
   {
    "category": "woodworking",
@@ -527,17 +576,17 @@
    "name": "14K views  35 reactions  Woodworking Experiments That Combin.mp4",
    "seconds": 182.6,
    "status": "analysed",
-   "thumb": "https://lh3.googleusercontent.com/drive-storage/AJQWtBM-fOG_wsBiVWzG2H0isk50CXtkdpcmFQATVvbsfp6n8fn1un9sPT4KvQDaavZORI6c7QHIR2zCig6mA3IqYUD9iOKy4EIpTKf5Kp6IBTU4qGB2xw=s220"
+   "thumb": "https://lh3.googleusercontent.com/drive-storage/AJQWtBOkNZtfmzGFYF7GQ1aM09CMtnBfcr8sUVWNJzBfG2Bo7mVPvOM1_sR-_CB4CjMhnaO4Gedil0T9puRSxV1bPo8Z1rA0w0Cu-nBLCYzDvOZK3c4=s220"
   },
   {
    "category": "fruit-food",
    "clips": 21,
-   "clips_used": 5,
+   "clips_used": 8,
    "drive_id": "16YGulUBLGqAaaKszOWZk_i6-AzTJ7DDu",
    "name": "87K views  35 reactions  These Food Hacks Are Too Good Not t.mp4",
    "seconds": 161.8,
    "status": "analysed",
-   "thumb": "https://lh3.googleusercontent.com/drive-storage/AJQWtBNJ2DZFhruSlxramvWlvJ_UWPzqELZt1l5p0_-KsRn6MuyZT9bbecVcrwVA0Xumnw0KCUtNSE_4TuIkmN62fJSFej50tfv_CnElK_qrgwXg2hZMgw=s220"
+   "thumb": "https://lh3.googleusercontent.com/drive-storage/AJQWtBMIu9TufiBzjdT7wAA31aSteCJ2kEBuoh0xhBu_Iz7Tz9TkxIT1AA1f81Wt1uQAxcmeWx_sj8oxW1VGbjh5TI-4G3MICqL-N40vPdYmm6Nc3VyShA=s220"
   },
   {
    "category": "christmas",
@@ -547,17 +596,17 @@
    "name": "44K views  29 reactions  Wonderful DIY Christmas Decorations.mp4",
    "seconds": 180.1,
    "status": "analysed",
-   "thumb": "https://lh3.googleusercontent.com/drive-storage/AJQWtBPtRoPTOVWn12_6BEegBxrwU38nIDSFu7qlC5-Y-8NDVdrLNtWfo57EqoTVBmaCQZFqxUCd2sw4ELTshHVbO5NVFjkxMyzNJY0iMcrCO8Qwe6Eb3Q=s220"
+   "thumb": "https://lh3.googleusercontent.com/drive-storage/AJQWtBNC1yKkM1ba_qeysR6q_5epuGq5a0Bk8auCiMH8VmLMwCcq0sKsgT3iJDw_rchuJLEd3rWifx4vpvg4yfKM4Ljqb9NFiPwTA4qcoUGP9sPpeIt68g=s220"
   },
   {
    "category": "tools-home",
    "clips": 19,
-   "clips_used": 2,
+   "clips_used": 3,
    "drive_id": "1z9ADbr7zhUN6zgRGoNVU3bzysYZ8QvIu",
    "name": "12K views  27 reactions  Creative Drill Machine Techniques f.mp4",
    "seconds": 180.1,
    "status": "analysed",
-   "thumb": "https://lh3.googleusercontent.com/drive-storage/AJQWtBPb08uhCHZm3lO7CwUTTlp8tce7oTGbY4Yjjk9VlMkKipH3G_t3S7AClSoi42yMuOjx-cEVihM0BGgr7GtCE4AQj9Qc3PRg5o0z2I42sdeNHYDoLw=s220"
+   "thumb": "https://lh3.googleusercontent.com/drive-storage/AJQWtBOTo0jV666W5-y9g4XHrogxA9j9Ou_PpIz2sgDdCVsZhHGOjP-Zcmx9_PpagZwgC3TOdw6rn20q2DA2p-K7utMgB9sPmwiiAcjNrjhaiQEo3zp18w=s220"
   },
   {
    "category": "tools-home",
@@ -567,7 +616,7 @@
    "name": "8K views  29 reactions  Advanced Electrical Wiring Tricks Ca.mp4",
    "seconds": 180.8,
    "status": "analysed",
-   "thumb": "https://lh3.googleusercontent.com/drive-storage/AJQWtBOos16gqezSWr_JokqP1L0l0EqTqp8Op76ne9s-JrpUu0CiAySv5pg09kJtzG8fZ8hDdpCY8Vi2W6CToyp49MIUDWAuL67oeKe9GsidE-YWdv86TQ=s220"
+   "thumb": "https://lh3.googleusercontent.com/drive-storage/AJQWtBMdV9TNgfFr7-aRZr4dDaaIiHCdK-vxSqiSgOE6AB3VKtEiiAQSK59bV9DXh390AquH4b7PIiG2_uSgqbyVHrJQUr0V7DNor64M0h28FBn9GX_RAw=s220"
   },
   {
    "category": null,
@@ -612,12 +661,12 @@
   {
    "category": "tools-home",
    "clips": 28,
-   "clips_used": 2,
+   "clips_used": 3,
    "drive_id": "1apWXbmfjxphQKpTj5OVu_s3bP4JzIfri",
    "name": "725K views  14K reactions  Transform Ordinary Household Item.mp4",
    "seconds": 240.1,
    "status": "analysed",
-   "thumb": "https://lh3.googleusercontent.com/drive-storage/AJQWtBPnVC6KBJxD1M8ddeNSLirzzt2LJVVq9fQsSeKKSVcV8Y3vPz8G-d69Im_BOig74ME4lhIBqEOuo8_xWA2eL65rjTGmA4isHunFLFJlChOnLOO7Jw=s220"
+   "thumb": "https://lh3.googleusercontent.com/drive-storage/AJQWtBMErnt5VvwH7MgMtevRyfLWwbxxJ-llWLAv5OETiVqsh1PdTQlEUYAuZ4Nd89-5-Bieg2uyjTt5yTDSL-Tnb9WHBQfbR95vSaojup0E9ObJ_Ow16A=s220"
   },
   {
    "category": "christmas",
@@ -627,16 +676,26 @@
    "name": "99K views  71 reactions  Wonderful Christmas Decoration Hack.mp4",
    "seconds": 130.4,
    "status": "analysed",
-   "thumb": "https://lh3.googleusercontent.com/drive-storage/AJQWtBOtxPbdBWaaC-brlIZFMDvk_EyToHa8AjnlMZfLmTWMudGLGQDVKRI970-6zEVjXZptprKCNbEFmdHtKkyP8b8DiG3NaXK7n_XbyZnwxHaEaAl0YQ=s220"
+   "thumb": "https://lh3.googleusercontent.com/drive-storage/AJQWtBMH1RmHW6jy9hApqP6KuWQpWQor1L41KAPESNFp28ModO2J3YNcZ2PyoiflHaeCknxd6_o75rgLMwOy5Xuq5HN85EVRFsk4SeeLyg-pdjcnlGnbIA=s220"
+  },
+  {
+   "category": "fruit-food",
+   "clips": 15,
+   "clips_used": 4,
+   "drive_id": "1nTHiAgIv__s-AAy_gdXzTQndjVsyHoU0",
+   "name": "23K views  115 reactions  Your daily dose of inspiration to .mp4",
+   "seconds": 184.3,
+   "status": "analysed",
+   "thumb": "https://lh3.googleusercontent.com/drive-storage/AJQWtBPffJ8b_QpuZ9kIen6FcUXwQUvcE7zxrN-tZWjfi9jkDIkkKnSPsvK9PdFt1lQ7IhdLfqMjRTwsNB0sfSELyBexNDaN7Xhrf4NB3X-MzIzEjO42ng=s220"
   }
  ],
  "summary": {
-  "analysed": 23,
+  "analysed": 24,
   "duplicates": 0,
-  "failed": 4,
+  "failed": 6,
   "file_errors": 4,
   "inbox_total": 28,
-  "outputs_done": 14,
+  "outputs_done": 16,
   "pools": {
    "beauty": {
     "clips": 24,
@@ -651,16 +710,16 @@
     "seconds_free": 675.8
    },
    "fruit-food": {
-    "clips": 59,
-    "clips_used": 36,
-    "seconds": 522.7,
-    "seconds_free": 154.9
+    "clips": 74,
+    "clips_used": 44,
+    "seconds": 707.0,
+    "seconds_free": 270.1
    },
    "tools-home": {
     "clips": 313,
-    "clips_used": 40,
+    "clips_used": 47,
     "seconds": 2694.9,
-    "seconds_free": 2279.0
+    "seconds_free": 2194.9
    },
    "woodworking": {
     "clips": 42,
@@ -671,5 +730,5 @@
   },
   "skipped": 0
  },
- "updated_at": "2026-11-19 22:52 PKT"
+ "updated_at": "2026-11-20 07:34 PKT"
 }

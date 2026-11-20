@@ -11,10 +11,16 @@ on:
         description: "Job ID (names the output artifact final-<job_id>)"
         required: true
         type: string
-      bundle_url:
-        description: "Direct download URL of bundle.zip for this job"
-        required: true
+      bundle_drive_id:
+        description: "Google Drive file ID of bundle.zip (preferred - no public link, no approval)"
+        required: false
         type: string
+        default: ""
+      bundle_url:
+        description: "Direct download URL of bundle.zip (fallback, used only when no Drive ID)"
+        required: false
+        type: string
+        default: ""
 
 jobs:
   render:
@@ -29,7 +35,41 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ffmpeg fonts-dejavu-core unzip
 
-      - name: Download bundle
+      - name: Download bundle from Drive
+        if: ${{ inputs.bundle_drive_id != '' }}
+        env:
+          GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}
+          GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
+          GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
+          BUNDLE_DRIVE_ID: ${{ inputs.bundle_drive_id }}
+        run: |
+          python3 - <<'PYEOF'
+          import json, os, urllib.request, urllib.parse
+          data = urllib.parse.urlencode({
+              "client_id": os.environ["GOOGLE_OAUTH_CLIENT_ID"],
+              "client_secret": os.environ["GOOGLE_OAUTH_CLIENT_SECRET"],
+              "refresh_token": os.environ["GOOGLE_REFRESH_TOKEN"],
+              "grant_type": "refresh_token"}).encode()
+          tok = json.loads(urllib.request.urlopen(
+              urllib.request.Request("https://oauth2.googleapis.com/token", data=data)).read())["access_token"]
+          fid = os.environ["BUNDLE_DRIVE_ID"]
+          req = urllib.request.Request(
+              "https://www.googleapis.com/drive/v3/files/" + fid + "?alt=media",
+              headers={"Authorization": "Bearer " + tok})
+          with urllib.request.urlopen(req) as r, open("bundle.zip", "wb") as fh:
+              while True:
+                  chunk = r.read(1 << 20)
+                  if not chunk:
+                      break
+                  fh.write(chunk)
+          print("downloaded bundle.zip", os.path.getsize("bundle.zip"), "bytes")
+          PYEOF
+          mkdir -p bundle
+          unzip -o bundle.zip -d bundle
+          ls -R bundle | head -50
+
+      - name: Download bundle from URL
+        if: ${{ inputs.bundle_drive_id == '' }}
         run: |
           curl -fL "${{ inputs.bundle_url }}" -o bundle.zip
           mkdir -p bundle

@@ -657,7 +657,7 @@ def _analyse_one(f):
 
 def cutter(board_sources):
     done_ids = {s.get("id") for s in board_sources
-                if s.get("stage") in ("pooled", "failed", "file-error", "duplicate", "skipped")}
+                if s.get("stage") in ("pooled", "failed", "file-error", "duplicate", "skipped", "removed")}
     all_videos = [f for f in drive_list(INBOX_ID)
                   if str(f.get("mimeType", "")).startswith("video/")]
     # Empty uploads (0 bytes) can never be processed — flag each once on the
@@ -850,9 +850,12 @@ def _find_open_job(title):
     return None
 
 
-def merger(state):
+def merger(state, blocked=None):
     """Build at most ONE v3 compilation per run (pacing), from the
-    richest qualifying pool: >= 80s unused, >= 2 sources (TEMPLATE v3)."""
+    richest qualifying pool: >= 80s unused, >= 2 sources (TEMPLATE v3).
+    Categories in `blocked` (their own sources not all resolved yet)
+    are evaluated but skipped this run."""
+    blocked = blocked or {}
     import builder
     folders = [f for f in drive_list(POOLS_ID) if f.get("mimeType") == FOLDER_MIME]
     log(f"merger: {len(folders)} category pool(s)")
@@ -870,6 +873,11 @@ def merger(state):
         log(f"merger: {cat['name']}: {len(unused)} unused clip(s), "
             f"{free_secs:.0f}s free, {nsrc} source(s)")
         if free_secs >= 80 and nsrc >= 2:
+            if cat["name"] in blocked:
+                log(f"merger: {cat['name']}: pool ready but "
+                    f"{blocked[cat['name']]} of its own source(s) still "
+                    f"unresolved — waiting for a later cycle")
+                continue
             cands.append((free_secs, cat, manifest))
     if not cands:
         return 0
@@ -1005,7 +1013,7 @@ def apply_board_requests():
     except Exception as e:
         log(f"requests fetch failed (ignored): {e}")
         return
-    for kind in ("retry", "ignore", "skip"):
+    for kind in ("retry", "ignore", "skip", "remove"):
         for item in reqs.get(kind) or []:
             target = item.get("target")
             name = item.get("name", "")
@@ -1024,6 +1032,15 @@ def apply_board_requests():
                     _set_source_clips_held(target, True)
                     _update_source_record(target, name=name, stage="skipped",
                                           note="Set aside by the owner — clips held.")
+                elif kind == "remove":
+                    # Permanent exclusion: purge any clips it already
+                    # contributed and flip its record to the terminal
+                    # "removed" stage — the cutter's done-set includes
+                    # "removed", so it is never downloaded or analysed
+                    # again even though the file stays in the Inbox.
+                    _remove_source_clips(target)
+                    _update_source_record(target, name=name, stage="removed",
+                                          note="Removed by the owner.")
                 log(f"requests: applied {kind} for {target[:8]}")
             except Exception as e:
                 log(f"requests: {kind} for {target[:8]} failed: {e}")
@@ -1082,32 +1099,38 @@ def main():
         n = cutter(board.get("sources") or [])
         did.append(f"cut {n} new source(s)")
     if MODE in ("merger", "both"):
-        # PHASE GATE (the user's phase model): merging is Phase 2 and starts
-        # only when Phase 1 (cutting) is complete — every Inbox video pooled,
-        # failed, a file-error or a duplicate. Anything still queued or
-        # unrecorded keeps the merger waiting for a later cycle.
-        uncut = 0
+        # PER-CATEGORY PHASE GATE: a category becomes buildable as soon as
+        # its OWN sources are all resolved — it no longer waits for the
+        # whole Inbox to be cut. A source blocks only the category recorded
+        # on its board record. A source that has not been cut yet has no
+        # known category (its category comes FROM its analysis), so it
+        # blocks nothing for now and simply keeps its own future category
+        # waiting once it is cut. Practical effect: builds start as soon as
+        # ANY category is ready, instead of waiting for the whole inbox.
+        blocked = {}
         try:
             fresh = get_board()
-            stages = {s.get("id"): s.get("stage")
-                      for s in fresh.get("sources") or []}
+            recs = {s.get("id"): s for s in fresh.get("sources") or []}
+            resolved = ("pooled", "failed", "file-error", "duplicate",
+                        "skipped", "removed")
             for f in drive_list(INBOX_ID):
                 if not str(f.get("mimeType", "")).startswith("video/"):
                     continue
                 if int(f.get("size") or 0) <= 0:
                     continue
-                if stages.get(f"drive-{f['id']}") not in (
-                        "pooled", "failed", "file-error", "duplicate", "skipped"):
-                    uncut += 1
+                rec = recs.get(f"drive-{f['id']}") or {}
+                if rec.get("stage") in resolved:
+                    continue
+                cat = rec.get("category") or ""
+                if cat:
+                    blocked[cat] = blocked.get(cat, 0) + 1
         except Exception as e:
             log(f"phase gate check failed ({e}) — merger proceeds")
-        if uncut:
-            log(f"merger: Phase 1 not complete — {uncut} video(s) still to "
-                f"cut; merging waits for a later cycle.")
-            did.append("merger waiting for Phase 1")
-        else:
-            n = merger(state)
-            did.append(f"built {n} compilation(s)")
+        if blocked:
+            log("merger: categories waiting on their own sources: " +
+                ", ".join(f"{c} ({n})" for c, n in sorted(blocked.items())))
+        n = merger(state, blocked)
+        did.append(f"built {n} compilation(s)")
     save_engine_state()
     post_limits()
     post_drive_pools()

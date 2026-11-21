@@ -57,7 +57,7 @@ OPENING_STYLES = ["action-first demo", "mistake callout", "personal story",
                   "relatable problem"]
 # Gemini TTS voices (male DIY narrator range), rotated per video.
 GEMINI_TTS_VOICES = ["Charon", "Puck", "Fenrir"]
-IMAGE_MODELS = ["gemini-2.5-flash-image", "gemini-2.5-flash-image-preview"]
+IMAGE_MODELS = ["gemini-2.5-flash-image", "gemini-3-pro-image-preview"]
 CHAR_POSES = [
     "pointing up with an excited grin",
     "holding a wrench and giving a thumbs up",
@@ -215,11 +215,17 @@ def _chain(path, filters):
 _tts_breaker = {"tripped": False}
 
 
+_tts_order = None  # run-level model preference, learned from outcomes
+
+
 def _gemini_tts(text, voice_name, out_wav):
     import base64, wave
+    global _tts_order
+    if _tts_order is None:
+        _tts_order = list(drv.TTS_MODELS)
     last = None
     quota_fails = 0
-    for model in drv.TTS_MODELS:
+    for model in list(_tts_order):
         try:
             out = drv.gpost_tts(model, {
                 "contents": [{"parts": [{"text": text}]}],
@@ -234,10 +240,17 @@ def _gemini_tts(text, voice_name, out_wav):
                 with wave.open(str(out_wav), "wb") as w:
                     w.setnchannels(1); w.setsampwidth(2); w.setframerate(24000)
                     w.writeframes(rawb)
+            if _tts_order[0] != model:  # promote the voice that works
+                _tts_order.remove(model)
+                _tts_order.insert(0, model)
             return True
         except drv.QuotaExhausted as e:
             last = e
             quota_fails += 1
+            # demote the dead model so later slots don't re-pay its
+            # backoff (observed 2026-11-21: ~2.4 min per slot, x10)
+            _tts_order.remove(model)
+            _tts_order.append(model)
             if quota_fails >= 2:
                 raise
             log(f"gemini tts quota on {model} — trying next voice model")

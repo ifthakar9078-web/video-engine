@@ -797,6 +797,29 @@ def _next_title(category, fin_folder):
     return f"compilation-{category}-{n}"
 
 
+def _unique_title(category, fin_folder, title):
+    """Re-checked at DELIVERY time: a title is chosen before a ~10-min
+    build, and a parallel run can deliver the same title meanwhile
+    (observed 2026-11-21: merger + link run both shipped
+    compilation-tools-home-24 and one replaced the other). Bump the
+    numeric suffix until the name is free in Finished."""
+    try:
+        names = {f.get("name") for f in drive_list(fin_folder)}
+    except Exception:
+        return title
+    if f"{title}.mp4" not in names:
+        return title
+    m = re.search(r"-(\d+)$", title)
+    stem = title[:m.start()] if m else title
+    n = (int(m.group(1)) + 1) if m else 2
+    while f"{stem}-{n}.mp4" in names:
+        n += 1
+    new_title = f"{stem}-{n}"
+    log(f"title collision: {title} already in Finished — "
+        f"delivering as {new_title}")
+    return new_title
+
+
 def _find_open_job(title):
     try:
         for j in qapi("GET", "/jobs").get("jobs", []):
@@ -870,6 +893,7 @@ def merger(state):
         res = builder.build_compilation(local, category,
                                         WORK / f"build-{title}", state, VOICE)
         final = Path(res["final"])
+        title = _unique_title(category, fin_folder, title)
         up = drive_upload(f"{title}.mp4", fin_folder, final, "video/mp4")
         log(f"merger: uploaded to Video Finished/{category}: {up.get('id')}")
         tag = f"drive-{title}"

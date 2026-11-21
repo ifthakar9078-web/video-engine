@@ -185,6 +185,21 @@ def post_drive_pools():
         log(f"drive pools report failed (ignored): {e}")
 
 
+def post_limits():
+    """Publish today's Gemini usage (counters + soft caps) to the board's
+    Limits section — one batched write at the end of a run. Best-effort."""
+    try:
+        q = _quota()
+        snap = {"date": q.get("date", ""),
+                "caps": dict(QUOTA_CAPS),
+                "used": {k: int(q.get(k, 0)) for k in QUOTA_CAPS}}
+        qapi("POST", "/limits", snap)
+        log(f"limits reported: {snap['used']} of {snap['caps']} "
+            f"({snap['date']})")
+    except Exception as e:
+        log(f"limits report failed (ignored): {e}")
+
+
 def set_job_stage(jid, stage, note="", error=None, output=None):
     log(f"job {jid}: {stage} {note}")
     body = {"stage": stage, "note": note}
@@ -1094,6 +1109,7 @@ def main():
             n = merger(state)
             did.append(f"built {n} compilation(s)")
     save_engine_state()
+    post_limits()
     post_drive_pools()
     post_now("Waiting for the next run", "", 0)
     engine_status("idle", "Drive cycle finished: " + ", ".join(did) + ".")

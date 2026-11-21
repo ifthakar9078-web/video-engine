@@ -218,6 +218,7 @@ _tts_breaker = {"tripped": False}
 def _gemini_tts(text, voice_name, out_wav):
     import base64, wave
     last = None
+    quota_fails = 0
     for model in drv.TTS_MODELS:
         try:
             out = drv.gpost_tts(model, {
@@ -236,6 +237,9 @@ def _gemini_tts(text, voice_name, out_wav):
             return True
         except drv.QuotaExhausted as e:
             last = e
+            quota_fails += 1
+            if quota_fails >= 2:
+                raise
             log(f"gemini tts quota on {model} — trying next voice model")
             continue
         except Exception as e:
@@ -280,6 +284,9 @@ def synth_slot(text, out_wav, state, kokoro_voice):
     the run and Kokoro takes over — voice never fails the build."""
     raw = str(out_wav) + ".raw.wav"
     label = None
+    today = time.strftime("%Y-%m-%d", time.gmtime())
+    if state.get("tts_dead_day") == today:
+        _tts_breaker["tripped"] = True  # quota died earlier today — Kokoro
     if not _tts_breaker["tripped"]:
         vname = GEMINI_TTS_VOICES[state.get("voice_counter", 0) % len(GEMINI_TTS_VOICES)]
         try:
@@ -287,7 +294,12 @@ def synth_slot(text, out_wav, state, kokoro_voice):
                 label = f"Gemini TTS {vname}"
         except drv.QuotaExhausted:
             _tts_breaker["tripped"] = True
-            log("gemini tts quota reached — Kokoro for the rest of this run")
+            state["tts_dead_day"] = today
+            try:
+                drv.save_engine_state()
+            except Exception:
+                pass
+            log("gemini tts quota reached — Kokoro for the rest of today")
     if label is None:
         if _kokoro_wav(text, kokoro_voice, raw):
             label = f"Kokoro {kokoro_voice}"
@@ -425,6 +437,9 @@ def make_characters(work, count, state):
     this function never raises."""
     paths = []
     try:
+        if state.get("img_dead_day") == time.strftime("%Y-%m-%d",
+                                                      time.gmtime()):
+            raise drv.QuotaExhausted("image quota already dead today")
         want = min(count, 4)
         made = []
         for k in range(want):
@@ -449,6 +464,8 @@ def make_characters(work, count, state):
                             break
                     if ok:
                         break
+                except drv.QuotaExhausted:
+                    raise  # quota is run-fatal for characters: abort all
                 except Exception as e:
                     log(f"character image attempt failed ({model}): {e}")
                     continue
@@ -462,6 +479,11 @@ def make_characters(work, count, state):
         return paths, ""
     except drv.QuotaExhausted:
         # A character must never defer or fail a video — placeholders.
+        state["img_dead_day"] = time.strftime("%Y-%m-%d", time.gmtime())
+        try:
+            drv.save_engine_state()
+        except Exception:
+            pass
         log("characters skipped (image quota) — rendering without")
         ph = work / "char_placeholder.png"
         _placeholder(ph)

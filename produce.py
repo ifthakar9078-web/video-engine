@@ -359,6 +359,7 @@ def main():
                 break
             jobs.append(job)
     if not jobs:
+        drv.post_limits()
         engine_status("idle", "Queue is empty — nothing to produce.")
         return 0
     results = []
@@ -378,6 +379,7 @@ def main():
             break
         drv.save_engine_state()
     drv.save_engine_state()
+    drv.post_limits()
     drv.post_drive_pools()
     drv.post_now("Waiting for the next run", "", 0)
     engine_status("idle", f"Link run finished: {', '.join(results)}.")

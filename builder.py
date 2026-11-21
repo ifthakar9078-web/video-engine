@@ -234,11 +234,15 @@ def _gemini_tts(text, voice_name, out_wav):
                     w.setnchannels(1); w.setsampwidth(2); w.setframerate(24000)
                     w.writeframes(rawb)
             return True
-        except drv.QuotaExhausted:
-            raise
+        except drv.QuotaExhausted as e:
+            last = e
+            log(f"gemini tts quota on {model} — trying next voice model")
+            continue
         except Exception as e:
             last = e
             continue
+    if isinstance(last, drv.QuotaExhausted):
+        raise last
     log(f"gemini tts failed ({last}) — falling back")
     return False
 
@@ -445,8 +449,6 @@ def make_characters(work, count, state):
                             break
                     if ok:
                         break
-                except drv.QuotaExhausted:
-                    raise
                 except Exception as e:
                     log(f"character image attempt failed ({model}): {e}")
                     continue
@@ -473,7 +475,7 @@ def make_characters(work, count, state):
 
 # ---------------- clip selection (v3 pool rules) ----------------
 def select_clips(unused, prefer_sources=(), allow_single=False,
-                 target_lo=72.0, target_hi=82.0):
+                 target_lo=74.0, target_hi=83.0):
     """unused: manifest clip dicts (with dur, reveal, source_id).
     Returns an ordered list (strongest mystery LAST, round-robin across
     sources) totalling ~target seconds, or None when the v3 gate fails:
@@ -594,6 +596,44 @@ def build_compilation(local_clips, category, work, state, kokoro_voice):
     lab, cta_slot = synth_slot(script["cta"], cta_wav, state, kokoro_voice)
     labels.append(lab)
     voice_files.append(cta_wav)
+    # ---- hard ceiling: the finished video must stay within 80-90s.
+    # If slow speech stretched the slots past the plan, atempo the
+    # longest trick voices down (voice-defined tail slots) until the
+    # total fits. Reliability of the format beats a perfect fit ratio.
+    trick_slots = []
+    for tm in trick_meta:
+        trick_slots.append(drv.ffprobe_dur(bundle / tm["voice"]))
+    total_est = hook_slot + sum(trick_slots) + cta_slot
+    if total_est > 89.5:
+        excess = total_est - 88.5
+        log(f"duration trim: total {total_est:.1f}s over target — "
+            f"trimming {excess:.1f}s from the longest tricks")
+        order = sorted(range(len(trick_slots)),
+                       key=lambda i: -trick_slots[i])
+        for i in order:
+            if excess <= 0:
+                break
+            reducible = trick_slots[i] - 3.2
+            if reducible <= 0.1:
+                continue
+            take = min(excess, reducible)
+            new_dur = trick_slots[i] - take
+            vw = bundle / trick_meta[i]["voice"]
+            atempo_fit(vw, new_dur)
+            c = local_clips[i]
+            trick_meta[i].update({
+                "in": round(max(0.0, c["dur"] - new_dur), 3),
+                "out": round(c["dur"], 3), "pad": "clone",
+                "payoff_at": round(max(0.4, new_dur - 0.35), 3)})
+            if new_dur >= 3.5:
+                trick_meta[i]["zoom"] = {
+                    "at": round(max(0.0, new_dur - 1.05), 3), "dur": 1.1}
+            else:
+                trick_meta[i].pop("zoom", None)
+            trick_slots[i] = new_dur
+            excess -= take
+        log(f"duration trim done: estimated total "
+            f"{hook_slot + sum(trick_slots) + cta_slot:.1f}s")
     voice_label = labels[0] if len(set(labels)) == 1 else \
         f"mixed ({', '.join(sorted(set(labels)))})"
 

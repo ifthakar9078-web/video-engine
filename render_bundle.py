@@ -101,8 +101,9 @@ RENDER BEHAVIOUR:
     fed into the encode pass). Output: H.265 libx265 CRF 19 preset fast,
     native (meta) resolution, AAC 256k, final.mp4 in the bundle dir.
   - Self-verification at the end: per-stream durations within 1s of each
-    other and ~total, full decode pass, silence scan (any dead air
-    >= 1.0s at -42dB fails the render). Exits non-zero on any failure.
+    other and ~total, full decode pass, RMS gap scan (any low-energy run
+    > 0.40s at -48dBFS fails the render — the TEMPLATE v3 rule). Exits
+    non-zero on any failure.
 """
 import glob
 import json
@@ -528,16 +529,48 @@ def verify(final, total):
     if r.returncode != 0 or r.stderr.strip():
         sys.stderr.write(f"VERIFY FAILED: decode errors:\n{r.stderr[-1500:]}\n")
         raise SystemExit(2)
-    r = subprocess.run(["ffmpeg", "-v", "info", "-i", final,
-                        "-af", "silencedetect=noise=-42dB:d=1.0",
-                        "-f", "null", "-"], capture_output=True, text=True)
-    for ln in r.stderr.splitlines():
-        m = re.search(r"silence_duration:\s*([\d.]+)", ln)
-        if m and float(m.group(1)) >= 1.0:
-            sys.stderr.write(
-                f"VERIFY FAILED: dead silence of {m.group(1)}s in output\n")
-            raise SystemExit(2)
+    gap, gspan = max_low_energy_run(final)
+    if gap > 0.40:
+        sys.stderr.write(
+            f"VERIFY FAILED: dead air of {gap:.2f}s in output "
+            f"(RMS gap scan, worst at {gspan[0]:.1f}-{gspan[1]:.1f}s; "
+            f"v3 limit is 0.40s)\n")
+        raise SystemExit(2)
     return d
+
+
+def max_low_energy_run(path, thresh_db=-48.0, win_s=0.05):
+    """Longest run of windows whose RMS stays below thresh_db dBFS,
+    measured on a 16kHz mono decode (the TEMPLATE v3 method — windowed
+    RMS energy, never silencedetect). Returns (seconds, (start, end))."""
+    r = subprocess.run(["ffmpeg", "-v", "error", "-i", str(path),
+                        "-ac", "1", "-ar", "16000", "-f", "s16le", "-"],
+                       capture_output=True)
+    if r.returncode != 0 or not r.stdout:
+        raise SystemExit(2)
+    pcm = r.stdout
+    win = int(16000 * win_s) * 2
+    thresh = (32768.0 * (10 ** (thresh_db / 20.0))) ** 2
+    try:
+        import audioop
+        def win_ms(b):
+            return audioop.rms(b, 2) ** 2
+    except Exception:
+        import array
+        def win_ms(b):
+            a = array.array("h"); a.frombytes(b)
+            return sum(x * x for x in a) / max(1, len(a))
+    best, best_span, cur, cur_start = 0.0, (0.0, 0.0), 0.0, 0.0
+    for i in range(len(pcm) // win):
+        if win_ms(pcm[i * win:(i + 1) * win]) < thresh:
+            if cur == 0.0:
+                cur_start = i * win_s
+            cur += win_s
+            if cur > best:
+                best, best_span = cur, (cur_start, cur_start + cur)
+        else:
+            cur = 0.0
+    return best, best_span
 
 
 # ---------------------------------------------------------------- main --

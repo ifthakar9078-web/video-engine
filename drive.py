@@ -43,7 +43,7 @@ REPO = "ifthakar9078-web/video-engine"
 API = "https://generativelanguage.googleapis.com/v1beta"
 DRIVE = "https://www.googleapis.com/drive/v3"
 UPLOAD = "https://www.googleapis.com/upload/drive/v3"
-ANALYSIS_MODELS = ["gemini-3.8-flash", "gemini-3.5-flash-lite"]
+ANALYSIS_MODELS = ["gemini-3.5-flash-lite", "gemini-3.8-flash"]
 TTS_MODELS = ["gemini-2.5-flash-preview-tts", "gemini-3.1-flash-tts-preview",
               "gemini-3.8-flash-tts", "gemini-3.8-flash-lite-tts"]
 FOLDER_MIME = "application/vnd.google-apps.folder"
@@ -321,12 +321,147 @@ def save_pool_manifest(cat_folder_id, pool_file_id, manifest):
         drive_upload("_pool.json", cat_folder_id, tmp, "application/json")
 
 
-# ---------------- gemini ----------------
+# ---------------- gemini (paced, quota-aware) ----------------
+class QuotaExhausted(Exception):
+    """The Gemini free quota (or our conservative soft cap under it) is
+    used up. Callers must REQUEUE their work and let a later run retry —
+    never fail a job over quota."""
+
+
+# Soft daily caps, deliberately BELOW the real free quotas (big Flash
+# ~20/day, Flash-Lite ~500/day) so the engine can never hit a hard limit.
+QUOTA_CAPS = {"lite": 400, "flash": 15, "tts": 250, "img": 40}
+ENGINE_STATE = None
+
+
+def _quota_class(model):
+    m = (model or "").lower()
+    if "tts" in m:
+        return "tts"
+    if "image" in m:
+        return "img"
+    if "lite" in m:
+        return "lite"
+    return "flash"
+
+
+def _quota():
+    st = ENGINE_STATE if ENGINE_STATE is not None else {}
+    q = st.setdefault("quota", {"date": "", "lite": 0, "flash": 0,
+                                "tts": 0, "img": 0})
+    today = time.strftime("%Y-%m-%d", time.gmtime())
+    if q.get("date") != today:
+        q.update({"date": today, "lite": 0, "flash": 0, "tts": 0, "img": 0})
+    return q
+
+
+def _quota_check(cls):
+    q = _quota()
+    if q.get(cls, 0) >= QUOTA_CAPS[cls]:
+        raise QuotaExhausted(
+            f"Gemini {cls} soft daily cap reached "
+            f"({q.get(cls, 0)}/{QUOTA_CAPS[cls]}) — work requeues")
+
+
+def _quota_bump(cls):
+    q = _quota()
+    q[cls] = q.get(cls, 0) + 1
+
+
 def gpost(url, payload):
-    req = urllib.request.Request(url, data=json.dumps(payload).encode(),
-        headers={"Content-Type": "application/json", "x-goog-api-key": GEMINI_KEY})
-    with urllib.request.urlopen(req, timeout=300) as r:
-        return json.loads(r.read())
+    """Gemini POST with exponential backoff on 429/503/network errors.
+    A persistent 429 (or a reached soft cap) raises QuotaExhausted."""
+    m = re.search(r"/models/([^/:]+)", url)
+    cls = _quota_class(m.group(1) if m else "")
+    _quota_check(cls)
+    last = None
+    for attempt in range(4):
+        try:
+            req = urllib.request.Request(url, data=json.dumps(payload).encode(),
+                headers={"Content-Type": "application/json",
+                         "x-goog-api-key": GEMINI_KEY})
+            with urllib.request.urlopen(req, timeout=300) as r:
+                out = json.loads(r.read())
+            _quota_bump(cls)
+            return out
+        except urllib.error.HTTPError as e:
+            last = e
+            if e.code == 429:
+                if attempt == 3:
+                    raise QuotaExhausted("Gemini HTTP 429 after retries")
+                time.sleep(20 * (2 ** attempt))
+                continue
+            if e.code in (500, 502, 503) and attempt < 3:
+                time.sleep(10 * (2 ** attempt))
+                continue
+            raise RuntimeError(f"Gemini HTTP {e.code} on {url.split('/')[-1]}")
+        except Exception as e:
+            last = e
+            if attempt < 3:
+                time.sleep(10 * (2 ** attempt))
+                continue
+            raise RuntimeError(f"Gemini request failed: {e}")
+    raise RuntimeError(f"Gemini request failed: {last}")
+
+
+def gpost_tts(model, payload):
+    return gpost(f"{API}/models/{model}:generateContent", payload)
+
+
+def gpost_image(model, payload):
+    return gpost(f"{API}/models/{model}:generateContent", payload)
+
+
+def gemini_generate_text(parts, state=None, kind="script"):
+    """Text generation, Flash-Lite first (quota-friendly), big Flash as
+    fallback. QuotaExhausted propagates so callers requeue."""
+    last = None
+    for model in ANALYSIS_MODELS:
+        try:
+            return gemini_generate(model, parts)
+        except QuotaExhausted:
+            raise
+        except Exception as e:
+            last = e
+            continue
+    raise RuntimeError(f"gemini text generation failed: {last}")
+
+
+# ---------------- engine state (Drive-persisted) ----------------
+def load_engine_state():
+    global ENGINE_STATE
+    st = {"hook_bank_next": 1, "screen_hook_next": 0, "voice_counter": 0,
+          "quota": {"date": "", "lite": 0, "flash": 0, "tts": 0, "img": 0}}
+    try:
+        f = drive_find(POOLS_ID, "_engine_state.json")
+        if f:
+            data = drive_download_json(f["id"])
+            if isinstance(data, dict):
+                for k, v in data.items():
+                    st[k] = v
+                log(f"engine state loaded (hook bank next "
+                    f"{st.get('hook_bank_next')}, quota {st.get('quota')})")
+    except Exception as e:
+        log(f"engine state load failed ({e}) — starting fresh")
+    ENGINE_STATE = st
+    return st
+
+
+def save_engine_state():
+    if ENGINE_STATE is None:
+        return
+    try:
+        data = json.dumps(ENGINE_STATE, indent=1).encode()
+        f = drive_find(POOLS_ID, "_engine_state.json")
+        if f:
+            drive_update_media(f["id"], data, "application/json")
+        else:
+            tmp = WORK / "_engine_state.json"
+            tmp.write_bytes(data)
+            drive_upload("_engine_state.json", POOLS_ID, tmp,
+                         "application/json")
+    except Exception as e:
+        log(f"engine state save failed (ignored): {e}")
 
 
 def gemini_upload(path, mime="video/mp4"):
@@ -410,102 +545,12 @@ def analyse(src, mime="video/mp4"):
             return {"category": clean_category(data.get("category", "life-hacks")),
                     "has_captions": bool(data.get("has_captions", False)),
                     "segments": segs}
+        except QuotaExhausted:
+            raise
         except Exception as e:
             last = e
             continue
     raise RuntimeError(f"analysis failed: {last}")
-
-
-SCRIPT_PROMPT = """You are a top TikTok creator writing narration for a hack compilation. You write exactly the way a real person talks on camera — never like an AI, never like an ad. Follow this blueprint (taken from a top-performing painting-hacks compilation):
-- HOOK first: a curiosity gap that makes the viewer feel a secret was kept from them. Reference: "Why did nobody tell me these painting tricks sooner?" Write the same form for THIS niche.
-- One line per trick. Each line: open with the pain point or a curiosity jab, give the step, end with the payoff/benefit. Reference lines: "Hate cleaning paint trays?" / "Still bending over and sticking down floor protection little by little?" / "It works even better than using tape."
-- SOUND HUMAN, NOT GENERATED: contractions everywhere (you're, don't, here's), short punchy sentences mixed with longer ones, natural spoken rhythm, and concrete details taken from what THIS clip actually shows — name the object, the motion, the result. Talk to the viewer directly ("watch this", "look at that edge").
-- NEVER use AI-sounding filler or stock phrases: no "in this video", no "let's dive in", no "game-changer", no "revolutionary", no "amazing trick you won't believe", no "say goodbye to", no "introducing", no exclamation spam, and never repeat the same sentence pattern twice in a row.
-- Every line must earn its seconds: a fresh detail, a sharper benefit, or a stronger tease in every sentence. If a line could fit ANY video, rewrite it until it only fits THIS clip.
-- Keep an OPEN LOOP: in the middle lines, tease that the best trick is still coming, so viewers hold to the final second.
-- Narration must fill the clip: words ~= slot_seconds x 2.5. Zero filler, zero dead air.
-- Do NOT number the lines (numbering is added by the renderer). No repeated openings.
-- CTA at the end, save-form: "Save these tricks for later, and follow for more." (adapt the wording to the niche).
-Return ONLY JSON: {"hook_line": "...", "lines": ["...", ...], "cta": "..."} with exactly one line per clip, in the order given.
-Clips (final order, slot seconds, what is shown):
-"""
-
-
-def write_script(clips):
-    listing = "\n".join(f"{i+1}. ({c['dur']:.1f}s) {c['desc']}" for i, c in enumerate(clips))
-    last = None
-    for model in ANALYSIS_MODELS:
-        try:
-            txt = gemini_generate(model, [{"text": SCRIPT_PROMPT + listing}])
-            data = json.loads(txt)
-            if isinstance(data, list):
-                data = next((d for d in data if isinstance(d, dict) and "lines" in d), {})
-            if len(data.get("lines", [])) != len(clips):
-                raise RuntimeError("line count mismatch")
-            return data
-        except Exception as e:
-            last = e
-            continue
-    raise RuntimeError(f"script failed: {last}")
-
-
-# ---------------- voice ----------------
-_kokoro = {"pipe": None, "tried": False}
-
-
-def kokoro_wav(text, out_wav):
-    try:
-        import numpy as np, wave
-        if not _kokoro["tried"]:
-            _kokoro["tried"] = True
-            from kokoro import KPipeline
-            _kokoro["pipe"] = KPipeline(lang_code='a')
-        if _kokoro["pipe"] is None:
-            return False
-        chunks = [a for _, _, a in _kokoro["pipe"](text, voice=VOICE, speed=1.1)]
-        if not chunks:
-            return False
-        pcm = np.concatenate(chunks)
-        data = (np.clip(pcm, -1, 1) * 32767).astype(np.int16)
-        with wave.open(str(out_wav), "wb") as w:
-            w.setnchannels(1); w.setsampwidth(2); w.setframerate(24000)
-            w.writeframes(data.tobytes())
-        return True
-    except Exception as e:
-        log(f"kokoro failed: {e}")
-        _kokoro["pipe"] = None
-        return False
-
-
-def gemini_tts_wav(text, out_wav):
-    import base64, wave
-    for model in TTS_MODELS:
-        try:
-            out = gpost(f"{API}/models/{model}:generateContent", {
-                "contents": [{"parts": [{"text": text}]}],
-                "generationConfig": {"responseModalities": ["AUDIO"],
-                    "speechConfig": {"voiceConfig": {"prebuiltVoiceConfig": {"voiceName": "Charon"}}}}})
-            rawb = base64.b64decode(out["candidates"][0]["content"]["parts"][0]["inlineData"]["data"])
-            if rawb[:4] == b"RIFF":
-                Path(out_wav).write_bytes(rawb)
-            else:
-                with wave.open(str(out_wav), "wb") as w:
-                    w.setnchannels(1); w.setsampwidth(2); w.setframerate(24000)
-                    w.writeframes(rawb)
-            return True
-        except Exception:
-            continue
-    return False
-
-
-def synth_block(text, out_mp3):
-    wav = Path(str(out_mp3) + ".wav")
-    if not kokoro_wav(text, wav) and not gemini_tts_wav(text, wav):
-        raise RuntimeError("voice synthesis failed (Kokoro and Gemini TTS)")
-    r = run(["ffmpeg", "-y", "-v", "error", "-i", str(wav), "-ar", "44100",
-             "-codec:a", "libmp3lame", "-b:a", "192k", str(out_mp3)])
-    if r.returncode != 0:
-        raise RuntimeError("voice convert failed")
 
 
 # ---------------- media helpers ----------------
@@ -543,10 +588,13 @@ def verify_final(p):
 
 # ---------------- CUTTER ----------------
 def _fail_stage(err):
-    """Transient Gemini overload (HTTP 503) is not a real failure: requeue
-    the source so the next cycle retries it automatically. Anything else
-    stays failed for the board's Retry button."""
-    return "queued" if ("503" in err or "Service Unavailable" in err) else "failed"
+    """Transient Gemini overload (HTTP 503) or quota exhaustion is not a
+    real failure: requeue the source so the next cycle retries it
+    automatically. Anything else stays failed for the board's Retry
+    button."""
+    if "503" in err or "Service Unavailable" in err or "quota" in err.lower():
+        return "queued"
+    return "failed"
 
 
 def _analyse_one(f):
@@ -579,6 +627,9 @@ def _analyse_one(f):
                 "category": info["category"],
                 "has_captions": info["has_captions"],
                 "segments": len(info["segments"]), "clips": clips}
+    except QuotaExhausted as e:
+        src.unlink(missing_ok=True)
+        return {"f": f, "ok": False, "error": f"quota exhausted: {e}"[:200]}
     except Exception as e:
         src.unlink(missing_ok=True)
         return {"f": f, "ok": False, "error": str(e)[:200]}
@@ -674,64 +725,129 @@ def cutter(board_sources):
     return processed
 
 
-# ---------------- MERGER ----------------
-def merger():
-    global VOICE_COUNTER
+# ---------------- MERGER (TEMPLATE v3, via builder.py) ----------------
+def reserve_clips(cat_id, chosen, token):
+    """Optimistically reserve chosen clips: mark them used with this
+    run's token and save the manifest, then read it back — if every
+    chosen clip carries OUR token, the reservation is ours. Returns the
+    fresh manifest or None (another run won the race; caller skips)."""
+    manifest, pfid = load_pool_manifest(cat_id)
+    names = {c["name"] for c in chosen}
+    for c in manifest["clips"]:
+        if c["name"] in names:
+            c["used"] = True
+            c["reserved_by"] = token
+    save_pool_manifest(cat_id, pfid, manifest)
+    fresh, _ = load_pool_manifest(cat_id)
+    mine = [c for c in fresh["clips"] if c["name"] in names]
+    if len(mine) == len(names) and all(
+            c.get("reserved_by") == token and c.get("used") for c in mine):
+        return fresh
+    # lost the race: release whatever carries our token and step aside
+    release_clips(cat_id, token)
+    return None
+
+
+def release_clips(cat_id, token):
+    try:
+        manifest, pfid = load_pool_manifest(cat_id)
+        changed = False
+        for c in manifest["clips"]:
+            if c.get("reserved_by") == token:
+                c["used"] = False
+                c.pop("reserved_by", None)
+                changed = True
+        if changed:
+            save_pool_manifest(cat_id, pfid, manifest)
+    except Exception as e:
+        log(f"release clips failed (ignored): {e}")
+
+
+def confirm_clips(cat_id, token):
+    """After a successful delivery: clips stay used; drop the token."""
+    try:
+        manifest, pfid = load_pool_manifest(cat_id)
+        changed = False
+        for c in manifest["clips"]:
+            if c.get("reserved_by") == token:
+                c.pop("reserved_by", None)
+                changed = True
+        if changed:
+            save_pool_manifest(cat_id, pfid, manifest)
+    except Exception as e:
+        log(f"confirm clips failed (ignored): {e}")
+
+
+def _finished_folder(category):
+    for f in drive_list(FINISHED_ID):
+        if f.get("name") == category and f.get("mimeType") == FOLDER_MIME:
+            return f["id"]
+    fid = drive_create_folder(category, FINISHED_ID)["id"]
+    log(f"created Video Finished/{category} folder")
+    return fid
+
+
+def _next_title(category, fin_folder):
+    existing = [f for f in drive_list(FINISHED_ID) + drive_list(fin_folder)
+                if f.get("name", "").startswith(f"compilation-{category}-")]
+    names = {f.get("name") for f in existing}
+    n = len(existing) + 1
+    while f"compilation-{category}-{n}.mp4" in names:
+        n += 1
+    return f"compilation-{category}-{n}"
+
+
+def _find_open_job(title):
+    try:
+        for j in qapi("GET", "/jobs").get("jobs", []):
+            if j.get("name") == title and j.get("status") in ("queued", "working"):
+                return j["id"]
+    except Exception:
+        pass
+    return None
+
+
+def merger(state):
+    """Build at most ONE v3 compilation per run (pacing), from the
+    richest qualifying pool: >= 80s unused, >= 2 sources (TEMPLATE v3)."""
+    import builder
     folders = [f for f in drive_list(POOLS_ID) if f.get("mimeType") == FOLDER_MIME]
     log(f"merger: {len(folders)} category pool(s)")
+    cands = []
     for cat in folders:
-        category = cat["name"]
         try:
-            manifest, pool_file_id = load_pool_manifest(cat["id"])
+            manifest, _pf = load_pool_manifest(cat["id"])
         except Exception as e:
-            log(f"merger: pool {category} manifest unreadable: {e}")
+            log(f"merger: pool {cat['name']} manifest unreadable: {e}")
             continue
-        unused = [c for c in manifest["clips"] if not c.get("used")]
+        unused = [c for c in manifest["clips"]
+                  if not c.get("used") and not c.get("held")]
         free_secs = sum(c["dur"] for c in unused)
-        log(f"merger: {category}: {len(unused)} unused clip(s), {free_secs:.0f}s free")
-        if free_secs < 70:
-            continue
-        # choose the compilation: longest clip first (hook), rest shuffled, 61-90s
-        hook = max(unused, key=lambda c: c["dur"])
-        rest = [c for c in unused if c is not hook]
-        random.shuffle(rest)
-        chosen, total = [hook], hook["dur"]
-        for c in rest:
-            if total + c["dur"] <= 90.0:
-                chosen.append(c); total += c["dur"]
-            if total >= 75:
-                break
-        if total < 61:
-            for c in rest:
-                if c in chosen:
-                    continue
-                if total + c["dur"] <= 90.0:
-                    chosen.append(c); total += c["dur"]
-                if total >= 61:
-                    break
-        if total < 61:
-            log(f"merger: {category}: could not reach 61s (got {total:.0f}s) — skipped")
-            continue
-        # finished videos are filed category-wise: Video Finished/<category>/
-        fin_folder = None
-        for f in drive_list(FINISHED_ID):
-            if f.get("name") == category and f.get("mimeType") == FOLDER_MIME:
-                fin_folder = f["id"]
-                break
-        if not fin_folder:
-            fin_folder = drive_create_folder(category, FINISHED_ID)["id"]
-            log(f"merger: created Video Finished/{category} folder")
-        # number the output: compilation-<category>-<n>.mp4 (count the root
-        # too — older finished videos live there, numbers must never repeat)
-        existing = [f for f in drive_list(FINISHED_ID) + drive_list(fin_folder)
-                    if f.get("name", "").startswith(f"compilation-{category}-")]
-        n = len(existing) + 1
-        names = {f.get("name") for f in existing}
-        while f"compilation-{category}-{n}.mp4" in names:
-            n += 1
-        title = f"compilation-{category}-{n}"
-        post_now(f"Making a {category.replace('-', ' ')} video", category, 2)
-        jid = None
+        nsrc = len({c.get("source_id") for c in unused})
+        log(f"merger: {cat['name']}: {len(unused)} unused clip(s), "
+            f"{free_secs:.0f}s free, {nsrc} source(s)")
+        if free_secs >= 80 and nsrc >= 2:
+            cands.append((free_secs, cat, manifest))
+    if not cands:
+        return 0
+    cands.sort(key=lambda x: -x[0])
+    _free, cat, manifest = cands[0]
+    category = cat["name"]
+    unused = [c for c in manifest["clips"]
+              if not c.get("used") and not c.get("held")]
+    chosen = builder.select_clips(unused)
+    if not chosen:
+        log(f"merger: {category}: selection failed — skipped")
+        return 0
+    token = f"run-{int(time.time())}-{random.randint(1000, 9999)}"
+    if reserve_clips(cat["id"], chosen, token) is None:
+        log(f"merger: {category}: clips were reserved by another run — skipped")
+        return 0
+    fin_folder = _finished_folder(category)
+    title = _next_title(category, fin_folder)
+    post_now(f"Making a {category.replace('-', ' ')} video", category, 2)
+    jid = _find_open_job(title)
+    if not jid:
         try:
             res = qapi("POST", "/jobs", {"items": [{
                 "link": f"https://drive.google.com/drive/folders/{cat['id']}",
@@ -740,109 +856,138 @@ def merger():
             jid = ids[0] if ids else None
         except Exception as e:
             log(f"merger: job create failed (continuing without board job): {e}")
+    try:
+        if jid:
+            set_job_stage(jid, "scripting",
+                          f"{len(chosen)} clips from pool {category} (v3 builder)")
+        local = []
+        for c in chosen:
+            p = WORK / f"pool-{c['name']}"
+            drive_download(c["drive_id"], p)
+            w, h = probe_wh(p)
+            local.append({**c, "file": str(p), "w": w, "h": h,
+                          "dur": ffprobe_dur(p) or c["dur"]})
+        res = builder.build_compilation(local, category,
+                                        WORK / f"build-{title}", state, VOICE)
+        final = Path(res["final"])
+        up = drive_upload(f"{title}.mp4", fin_folder, final, "video/mp4")
+        log(f"merger: uploaded to Video Finished/{category}: {up.get('id')}")
+        tag = f"drive-{title}"
+        r = run(["gh", "release", "create", tag, str(final), "--title", title,
+                 "--notes", f"Produced by the independent engine (TEMPLATE v3) "
+                            f"from the {category} pool ({res['n_clips']} clips, "
+                            f"{res['duration']:.0f}s). Voice: {res['voice_label']}. "
+                            f"Also in Drive Video Finished."])
+        if r.returncode != 0:
+            r = run(["gh", "release", "upload", tag, str(final), "--clobber"])
+            if r.returncode != 0:
+                raise RuntimeError("release publish failed: " + (r.stderr or "")[-250:])
+        url = f"https://github.com/{REPO}/releases/download/{tag}/{title}.mp4"
+        confirm_clips(cat["id"], token)
+        save_engine_state()
+        note = (f"{title} — {res['n_clips']} clips, {res['duration']:.0f}s, "
+                f"in Video Finished · voice: {res['voice_label']}")
+        if res.get("char_note"):
+            note += f" · {res['char_note']}"
+        if jid:
+            set_job_stage(jid, "done", note, output=url)
         try:
-            if jid:
-                set_job_stage(jid, "scripting",
-                              f"{len(chosen)} clips from pool {category}, {total:.0f}s")
-            local = []
-            for c in chosen:
-                p = WORK / f"pool-{c['name']}"
-                drive_download(c["drive_id"], p)
-                w, h = probe_wh(p)
-                local.append({**c, "file": str(p), "w": w, "h": h,
-                              "dur": ffprobe_dur(p) or c["dur"]})
-            total = sum(c["dur"] for c in local)
-            script = write_script(local)
-            blocks = []
-            for i, c in enumerate(local):
-                num = NUMWORDS[i] if i < len(NUMWORDS) else str(i + 1)
-                text = f"{num} — {script['lines'][i]}"
-                if i == 0:
-                    text = f"{script['hook_line']} {text}"
-                if i == len(local) - 1:
-                    text = f"{text} {script['cta']}"
-                blocks.append(text)
-            if jid:
-                set_job_stage(jid, "voicing", f"voice {VOICE}")
-            bundle = WORK / "bundle"
-            if bundle.exists():
-                shutil.rmtree(bundle)
-            (bundle / "clips").mkdir(parents=True)
-            (bundle / "voice").mkdir(parents=True)
-            starts, t = [], 0.0
-            for i, c in enumerate(local):
-                starts.append(t); t += c["dur"]
-                r = run(["ffmpeg", "-y", "-v", "error", "-i", c["file"], "-an",
-                         "-c:v", "copy", str(bundle / "clips" / f"{i+1:03d}.mp4")])
-                if r.returncode != 0:
-                    r = run(["ffmpeg", "-y", "-v", "error", "-i", c["file"], "-an",
-                             "-c:v", "libx264", "-crf", "10", "-preset", "veryfast",
-                             str(bundle / "clips" / f"{i+1:03d}.mp4")])
-                    if r.returncode != 0:
-                        raise RuntimeError("bundle clip copy failed")
-                synth_block(blocks[i], bundle / "voice" / f"{i+1:03d}.mp3")
-            dims = {}
-            for c in local:
-                dims[(c["w"], c["h"])] = dims.get((c["w"], c["h"]), 0) + 1
-            (W, H) = max(dims.items(), key=lambda kv: kv[1])[0]
-            any_captions = any(c.get("has_captions") for c in local)
-            captions = None
-            srt_path = None
-            if not any_captions:
-                captions = [{"start": round(starts[i], 2),
-                             "end": round(starts[i] + local[i]["dur"], 2),
-                             "text": blocks[i]} for i in range(len(local))]
-            else:
-                srt_path = WORK / f"{title}.srt"
-                srt_path.write_text("\n".join(
-                    f"{i+1}\n{fmt_t(starts[i])} --> {fmt_t(starts[i] + local[i]['dur'])}\n{blocks[i]}\n"
-                    for i in range(len(local))))
-            (bundle / "meta.json").write_text(json.dumps(
-                {"title": title, "width": W, "height": H, "fps": 30,
-                 "hook_text": None, "captions": captions}, indent=2))
-            if jid:
-                set_job_stage(jid, "rendering", title)
-            r = run(["python3", "render_bundle.py", str(bundle)])
-            if r.returncode != 0:
-                raise RuntimeError("render failed: " + (r.stderr or "")[-300:])
-            final = WORK / f"{title}.mp4"
-            shutil.copy(bundle / "final.mp4", final)
-            d = verify_final(final)
-            log(f"merger: verified {title}: video {d['video']:.2f}s / audio {d['audio']:.2f}s")
-            up = drive_upload(f"{title}.mp4", fin_folder, final, "video/mp4")
-            log(f"merger: uploaded to Video Finished/{category}: {up.get('id')}")
-            if srt_path:
-                drive_upload(f"{title}.srt", fin_folder, srt_path, "text/plain")
-            tag = f"drive-{title}"
-            files = [str(final)] + ([str(srt_path)] if srt_path else [])
-            r = run(["gh", "release", "create", tag, *files, "--title", title,
-                     "--notes", f"Produced by the Drive engine from the {category} pool "
-                                f"({len(local)} clips, {total:.0f}s). Also in Drive Video Finished."])
-            if r.returncode != 0:
-                r = run(["gh", "release", "upload", tag, *files, "--clobber"])
-                if r.returncode != 0:
-                    raise RuntimeError("release publish failed: " + (r.stderr or "")[-250:])
-            url = f"https://github.com/{REPO}/releases/download/{tag}/{title}.mp4"
-            for c in manifest["clips"]:
-                if c["name"] in {x["name"] for x in chosen}:
-                    c["used"] = True
-            save_pool_manifest(cat["id"], pool_file_id, manifest)
-            if jid:
-                set_job_stage(jid, "done",
-                              f"{title} — {len(local)} clips, {total:.0f}s, in Video Finished",
-                              output=url)
-            try:
-                qapi("POST", "/settings", {"voice_counter": VOICE_COUNTER + 1})
-            except Exception as e:
-                log(f"voice rotation save failed (ignored): {e}")
-            log(f"merger: DONE {title} ({total:.0f}s) -> {url}")
-            return 1
+            qapi("POST", "/settings", {"voice_counter": VOICE_COUNTER + 1})
         except Exception as e:
-            log(f"merger: FAILED {category}: {e}")
-            if jid:
-                set_job_stage(jid, "failed", "", error=str(e)[:280])
+            log(f"voice rotation save failed (ignored): {e}")
+        log(f"merger: DONE {title} ({res['duration']:.0f}s) -> {url}")
+        return 1
+    except QuotaExhausted as e:
+        release_clips(cat["id"], token)
+        log(f"merger: {category} deferred — {e}")
+        if jid:
+            set_job_stage(jid, "queued",
+                          "Waiting for Gemini quota — automatic retry next cycle")
+        return 0
+    except Exception as e:
+        release_clips(cat["id"], token)
+        log(f"merger: FAILED {category}: {e}")
+        if jid:
+            set_job_stage(jid, "failed", "", error=str(e)[:280])
+        return 0
+
+
+# ---------------- board resolution requests ----------------
+def _update_source_record(fid, **fields):
+    try:
+        cur = next((s for s in (get_board().get("sources") or [])
+                    if s.get("id") == f"drive-{fid}"), None)
+        rec = {"id": f"drive-{fid}", "name": "", "category": "",
+               "stage": "queued", "duration": 0, "thumb": "", "note": ""}
+        if cur:
+            rec.update(cur)
+        rec.update(fields)
+        post_source(rec)
+    except Exception as e:
+        log(f"source record update failed (ignored): {e}")
+
+
+def _remove_source_clips(fid):
+    for cat in drive_list(POOLS_ID):
+        if cat.get("mimeType") != FOLDER_MIME:
             continue
-    return 0
+        manifest, pfid = load_pool_manifest(cat["id"])
+        kept = [c for c in manifest["clips"] if c.get("source_id") != fid]
+        if len(kept) != len(manifest["clips"]):
+            manifest["clips"] = kept
+            save_pool_manifest(cat["id"], pfid, manifest)
+            log(f"requests: removed clips of source {fid[:8]} from {cat['name']}")
+
+
+def _set_source_clips_held(fid, held):
+    for cat in drive_list(POOLS_ID):
+        if cat.get("mimeType") != FOLDER_MIME:
+            continue
+        manifest, pfid = load_pool_manifest(cat["id"])
+        changed = False
+        for c in manifest["clips"]:
+            if c.get("source_id") == fid and bool(c.get("held")) != held:
+                c["held"] = held
+                changed = True
+        if changed:
+            save_pool_manifest(cat["id"], pfid, manifest)
+
+
+def apply_board_requests():
+    """Consume the board's retry / ignore / skip requests so the system
+    honours them with NO Muse in the loop."""
+    try:
+        reqs = qapi("GET", "/requests")
+    except Exception as e:
+        log(f"requests fetch failed (ignored): {e}")
+        return
+    for kind in ("retry", "ignore", "skip"):
+        for item in reqs.get(kind) or []:
+            target = item.get("target")
+            name = item.get("name", "")
+            if not target:
+                continue
+            try:
+                if kind == "retry":
+                    _remove_source_clips(target)
+                    _update_source_record(target, name=name, stage="queued",
+                                          note="")
+                elif kind == "ignore":
+                    _remove_source_clips(target)
+                    _update_source_record(target, name=name, stage="duplicate",
+                                          note="Removed by the owner.")
+                elif kind == "skip":
+                    _set_source_clips_held(target, True)
+                    _update_source_record(target, name=name, stage="skipped",
+                                          note="Set aside by the owner — clips held.")
+                log(f"requests: applied {kind} for {target[:8]}")
+            except Exception as e:
+                log(f"requests: {kind} for {target[:8]} failed: {e}")
+            try:
+                qapi("POST", "/requests/clear",
+                     {"kind": kind, "target": target})
+            except Exception:
+                pass
 
 
 # ---------------- main ----------------
@@ -880,6 +1025,14 @@ def main():
     INBOX_ID = settings.get("inbox_folder_id") or INBOX_ID
     FINISHED_ID = settings.get("finished_folder_id") or FINISHED_ID
     POOLS_ID = settings.get("pools_folder_id") or POOLS_ID
+    state = load_engine_state()
+    # Board resolution requests (retry / ignore / skip) are honoured by
+    # the engine itself, before any cutting, so they work with no Muse.
+    apply_board_requests()
+    try:
+        board = get_board()
+    except Exception:
+        pass
     did = []
     if MODE in ("cutter", "both"):
         n = cutter(board.get("sources") or [])
@@ -909,8 +1062,9 @@ def main():
                 f"cut; merging waits for a later cycle.")
             did.append("merger waiting for Phase 1")
         else:
-            n = merger()
+            n = merger(state)
             did.append(f"built {n} compilation(s)")
+    save_engine_state()
     post_drive_pools()
     post_now("Waiting for the next run", "", 0)
     engine_status("idle", "Drive cycle finished: " + ", ".join(did) + ".")

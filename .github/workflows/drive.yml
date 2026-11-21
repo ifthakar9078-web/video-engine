@@ -8,10 +8,12 @@
 # heavy setup when there is nothing to do) -> drive.py:
 # CUTTER takes new videos from the Drive "Video Inbox" one by one, Gemini
 # analyses each, scenes are cut into the category pool folders in "Video
-# Pools"; MERGER builds one 61-90s compilation from any pool with >= 70s of
-# unused clips (fresh Gemini script, Kokoro voice, render_bundle.py),
-# uploads it to "Video Finished", publishes a GitHub Release asset and
-# reports to the board Worker.
+# Pools"; MERGER builds one TEMPLATE v3 compilation (builder.py: Part 3
+# script, Gemini TTS -> Kokoro voice, 80-90s, RMS-verified) from any pool
+# with >= 80s of unused clips from >= 2 sources, uploads it to "Video
+# Finished", publishes a GitHub Release asset and reports to the board.
+# Scheduled runs use mode "both" (full production); workflow_dispatch can
+# still override the mode manually.
 #
 # Required repo secrets: QUEUE_KEY, GEMINI_API_KEY, GOOGLE_OAUTH_CLIENT_ID,
 # GOOGLE_OAUTH_CLIENT_SECRET, GOOGLE_REFRESH_TOKEN (all set).
@@ -78,7 +80,7 @@ jobs:
         id: plan
         env:
           DRIVE_TOKEN: ${{ steps.auth.outputs.access_token }}
-          MODE: ${{ inputs.mode || 'cutter' }}
+          MODE: ${{ inputs.mode || 'both' }}
           MAX_SOURCES: ${{ inputs.max_sources }}
         run: |
           cat > plan.py <<'PYEOF'
@@ -167,7 +169,7 @@ jobs:
       - name: Install Python tools (Kokoro TTS)
         if: steps.plan.outputs.has_work == 'true'
         continue-on-error: true
-        run: pip install kokoro
+        run: pip install kokoro scipy pillow
 
       - name: Run Drive stages
         if: steps.plan.outputs.has_work == 'true'
@@ -178,7 +180,7 @@ jobs:
           QUEUE_KEY: ${{ secrets.QUEUE_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GH_TOKEN: ${{ github.token }}
-          MODE: ${{ inputs.mode || 'cutter' }}
+          MODE: ${{ inputs.mode || 'both' }}
           MAX_SOURCES: ${{ inputs.max_sources }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |

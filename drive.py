@@ -374,8 +374,13 @@ def gpost(url, payload):
     m = re.search(r"/models/([^/:]+)", url)
     cls = _quota_class(m.group(1) if m else "")
     _quota_check(cls)
+    # TTS/image free tiers treat 429 as a daily wall, not a transient:
+    # fail fast (2 attempts) so a dead quota costs seconds, not the
+    # ~10 minutes per call the full backoff burned on 2026-11-21.
+    fast = cls in ("tts", "img")
+    max_att = 2 if fast else 4
     last = None
-    for attempt in range(4):
+    for attempt in range(max_att):
         try:
             req = urllib.request.Request(url, data=json.dumps(payload).encode(),
                 headers={"Content-Type": "application/json",
@@ -387,17 +392,17 @@ def gpost(url, payload):
         except urllib.error.HTTPError as e:
             last = e
             if e.code == 429:
-                if attempt == 3:
+                if attempt == max_att - 1:
                     raise QuotaExhausted("Gemini HTTP 429 after retries")
-                time.sleep(20 * (2 ** attempt))
+                time.sleep((10 if fast else 20) * (2 ** attempt))
                 continue
-            if e.code in (500, 502, 503) and attempt < 3:
+            if e.code in (500, 502, 503) and attempt < max_att - 1:
                 time.sleep(10 * (2 ** attempt))
                 continue
             raise RuntimeError(f"Gemini HTTP {e.code} on {url.split('/')[-1]}")
         except Exception as e:
             last = e
-            if attempt < 3:
+            if attempt < max_att - 1:
                 time.sleep(10 * (2 ** attempt))
                 continue
             raise RuntimeError(f"Gemini request failed: {e}")

@@ -275,6 +275,7 @@ def process_job(job, state):
                                         WORK / f"build-{title}", state,
                                         drv.VOICE)
         final = Path(res["final"])
+        title = drv._unique_title(category, fin_folder, title)
         drv.drive_upload(f"{title}.mp4", fin_folder, final, "video/mp4")
         tag = f"drive-{title}"
         r = run(["gh", "release", "create", tag, str(final), "--title", title,
